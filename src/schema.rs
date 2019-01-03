@@ -28,7 +28,7 @@ pub struct QueryRoot;
 
 graphql_object!(QueryRoot: () |&self| {
     field all_users(&executor) -> FieldResult<Vec<u32>> {
-        use ::db::users::dsl::*;
+        use db::users::dsl::*;
 
         let conn = establish_connection();
         users.limit(5)
