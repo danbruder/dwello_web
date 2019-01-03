@@ -2,7 +2,6 @@
 #![allow(proc_macro_derive_resolution_fallback)]
 
 #[macro_use] extern crate diesel;
-#[macro_use] extern crate rocket_contrib;
 #[macro_use] extern crate juniper;
 #[macro_use] extern crate rocket;
 
@@ -15,18 +14,25 @@ use rocket::response::content;
 
 pub mod schema;
 pub mod db;
-pub mod models;
 
-#[database("scoutql")]
-pub struct DbConn(PgConnection);
+extern crate dotenv;
 
-pub struct Ctx { 
-    why: u32,
-    conn: DbConn
+use diesel::prelude::*;
+use dotenv::dotenv;
+use std::env;
+
+pub fn establish_connection() -> PgConnection {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url)
+        .expect(&format!("Error connecting to {}", database_url))
 }
 
-impl juniper::Context for Ctx {}
-
+/*
+ * Rocket routes
+ */
 #[get("/")]
 fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
@@ -36,23 +42,20 @@ fn graphiql() -> content::Html<String> {
 fn get_graphql_handler(
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,
-    conn: DbConn
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, &Ctx{ why: 1, conn: conn})
+    request.execute(&schema, &())
 }
 
 #[post("/graphql", data = "<request>")]
 fn post_graphql_handler(
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,
-    conn: DbConn
 ) -> juniper_rocket::GraphQLResponse {
-    request.execute(&schema, &Ctx{ why: 1, conn: conn})
+    request.execute(&schema ,&())
 }
 
 fn main() {
     rocket::ignite()
-        .attach(DbConn::fairing())
         .manage(create_schema())
         .mount(
             "/",
