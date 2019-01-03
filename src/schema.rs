@@ -1,3 +1,5 @@
+#![feature(decl_macro, proc_macro_hygiene)]
+
 use juniper::{FieldResult, LookAheadSelection, RootNode};
 
 #[derive(GraphQLEnum, Clone, Copy)]
@@ -26,8 +28,7 @@ struct Human {
 }
 
 impl Human {
-    fn from_lookahead(selection: LookAheadSelection) -> Self {
-        println!("{}", selection);
+    fn from_lookahead(selection: LookAheadSelection<Human>) -> Self {
         Human {
             id: "1234".to_owned(),
             name: "Dan".to_owned(),
