@@ -1,96 +1,53 @@
-#![feature(decl_macro, proc_macro_hygiene)]
+#![allow(proc_macro_derive_resolution_fallback)]
 
-use juniper::{FieldResult, LookAheadSelection, RootNode};
+use juniper::{FieldResult, RootNode};
+use super::Ctx;
+use super::models::*;
 
-#[derive(GraphQLEnum, Clone, Copy)]
-enum Episode {
-    NewHope,
-    Empire,
-    Jedi,
-}
+use diesel::prelude::*;
 
-#[derive(GraphQLEnum, Clone, Copy)]
-enum Role {
-    Admin,
-    Anonymous,
-    Editor,
-    Writer,
-}
-
-#[derive(GraphQLObject, Clone)]
-struct Human {
-    id: String,
-    name: String,
-    appears_in: Vec<Episode>,
-    home_planet: String,
-    papers: Vec<Paper>,
-    role: Role,
-}
-
-impl Human {
-    fn from_lookahead(selection: LookAheadSelection<Human>) -> Self {
-        Human {
-            id: "1234".to_owned(),
-            name: "Dan".to_owned(),
-            appears_in: vec![Episode::NewHope],
-            home_planet: "Earth".to_owned(),
-            role: Role::Admin,
-            papers: vec![Paper {
-                title: "New York Times".to_string(),
-                id: "1".to_string(),
-                readers: vec![],
-            }],
-        }
-    }
-}
-
-#[derive(GraphQLObject, Clone)]
-#[graphql(description = "A medium of words")]
-struct Paper {
-    id: String,
-    title: String,
-    readers: Vec<Human>,
+#[derive(GraphQLObject)]
+#[graphql(description = "User")]
+struct User {
+    id: i32,
+    first_name: String,
+    last_name: String,
+    email: String,
+    phone_number: String,
 }
 
 #[derive(GraphQLInputObject)]
-#[graphql(description = "A humanoid creature in the Star Wars universe")]
-struct NewHuman {
-    name: String,
-    appears_in: Vec<Episode>,
-    role: Role,
-    home_planet: String,
+#[graphql(description = "User")]
+struct NewUser {
+    first_name: String,
+    last_name: String,
+    password: String,
+    email: String,
+    phone_number: String,
 }
 
 pub struct QueryRoot;
 
-graphql_object!(QueryRoot: () |&self| {
-    field human(&executor, id: String, name: Option<String>) -> FieldResult<Human> {
-        Ok(Human{
-            id: "1234".to_owned(),
-            name: "Dan".to_owned(),
-            appears_in: vec![Episode::NewHope],
-            home_planet: "Earth".to_owned(),
-            role: Role::Admin,
-            papers: vec![Paper{
-                title: "New York Times".to_string(), 
-                id: "1".to_string(),
-                readers: vec![]
-            }]
-        })
+graphql_object!(QueryRoot: Ctx |&self| {
+    field all_users(&executor) -> FieldResult<Vec<User>> {
+        let one = executor.context().why;
+        use ::db::users::dsl::*;
+
+        users.limit(5)
+            .load::<User>(&executor.context().conn)
     }
 });
 
 pub struct MutationRoot;
 
-graphql_object!(MutationRoot: () |&self| {
-    field createHuman(&executor, new_human: NewHuman) -> FieldResult<Human> {
-        Ok(Human{
-            id: "1234".to_owned(),
-            name: new_human.name,
-            appears_in: new_human.appears_in,
-            role: new_human.role,
-            home_planet: new_human.home_planet,
-            papers: vec![]
+graphql_object!(MutationRoot: Ctx |&self| {
+    field createUser(&executor, input: NewUser) -> FieldResult<User> {
+        Ok(User{
+            id: 123,
+            first_name: input.first_name,
+            last_name: input.last_name,
+            phone_number: input.phone_number,
+            email: input.email,
         })
     }
 });

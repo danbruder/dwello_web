@@ -1,0 +1,2 @@
+[global.databases]
+scoutql = { url = "postgres://postgres:postgres@localhost:5432/scoutql_dev" }
