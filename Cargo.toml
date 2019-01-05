@@ -4,4 +4,22 @@ version = "0.1.0"
 authors = ["dan@debassociates.com"]
 
 [dependencies]
-juniper = "0.11.1"
+juniper_hyper = "0.2.0"
+diesel = { version = "1.0.0", features = ["postgres"] }
+dotenv = "0.9.0"
+
+serde = "1.0"
+serde_json = "1.0"
+serde_derive = "1.0"
+url = "1.7"
+futures = "0.1"
+tokio = "0.1.8"
+hyper = "0.12"
+tokio-threadpool = "0.1.7"
+pretty_env_logger = "0.2"
+reqwest = "0.9"
+
+[dependencies.juniper]
+version = "0.11.1"
+features = ["expose-test-schema", "serde_json"]
+
