@@ -1,3 +1,5 @@
+#![feature(decl_macro, proc_macro_hygiene)]
+
 #[macro_use]
 extern crate juniper;
 
@@ -20,17 +22,12 @@ use self::diesel::prelude::*;
 use schema::users;
 
 // Hyper stuff
-extern crate futures;
-extern crate hyper;
-extern crate juniper_hyper;
-extern crate pretty_env_logger;
-use futures::future;
-use hyper::header::Authorization;
-use hyper::rt::{self, Future};
-use hyper::service::service_fn;
-use hyper::Method;
-use hyper::{Body, Response, Server, StatusCode};
-use juniper::tests::model::Database;
+extern crate juniper_rocket;
+#[macro_use] extern crate rocket;
+
+use rocket::response::content;
+use rocket::State;
+
 use juniper::RootNode;
 use std::sync::Arc;
 
@@ -104,39 +101,34 @@ struct Ctx {
     db: ConnectionPool,
 }
 
+
+/*
+ * Rocket stuff
+ */
+#[get("/")]
+fn graphiql() -> content::Html<String> {
+    juniper_rocket::graphiql_source("/graphql")
+}
+
+#[post("/graphql", data = "<request>")]
+fn post_graphql_handler(
+    context: State<Ctx>,
+    request: juniper_rocket::GraphQLRequest,
+    schema: State<Schema>,
+) -> juniper_rocket::GraphQLResponse {
+    request.execute(&schema, &context)
+}
+
 fn main() {
-    pretty_env_logger::init();
-
-    let addr = ([127, 0, 0, 1], 3000).into();
-
-    let root_node = Arc::new(Schema::new(Query, Mutation));
-    let ctx = Arc::new(Ctx { db: db_pool() });
-
-    let new_service = move || {
-        let root_node = root_node.clone();
-        let ctx = ctx.clone();
-        service_fn(move |req| -> Box<Future<Item = _, Error = _> + Send> {
-            let root_node = root_node.clone();
-            let ctx = ctx.clone();
-            let has_auth_header = req.headers.get().has::<Authorization>();
-            match (req.method(), req.uri().path()) {
-                (&Method::GET, "/") => Box::new(juniper_hyper::graphiql("/graphql")),
-                (&Method::GET, "/graphql") => Box::new(juniper_hyper::graphql(root_node, ctx, req)),
-                (&Method::POST, "/graphql") => {
-                    Box::new(juniper_hyper::graphql(root_node, ctx, req))
-                }
-                _ => {
-                    let mut response = Response::new(Body::empty());
-                    *response.status_mut() = StatusCode::NOT_FOUND;
-                    Box::new(future::ok(response))
-                }
-            }
-        })
-    };
-    let server = Server::bind(&addr)
-        .serve(new_service)
-        .map_err(|e| eprintln!("server error: {}", e));
-    println!("Listening on http://{}", addr);
-
-    rt::run(server);
+    rocket::ignite()
+        .manage(Ctx{ db: db_pool()})
+        .manage(Schema::new(
+                Query, 
+                Mutation
+        ))
+        .mount(
+            "/",
+            routes![graphiql, post_graphql_handler],
+        )
+        .launch();
 }
