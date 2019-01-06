@@ -12,6 +12,7 @@ extern crate dotenv;
 
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
+use diesel::r2d2;
 use dotenv::dotenv;
 use std::env;
 pub mod schema;
@@ -32,26 +33,17 @@ use juniper::tests::model::Database;
 use juniper::RootNode;
 use std::sync::Arc;
 
-pub fn establish_connection() -> PgConnection {
+pub type ConnectionManager = r2d2::ConnectionManager<PgConnection>;
+pub type ConnectionPool = r2d2::Pool<ConnectionManager>;
+
+pub fn db_pool() -> ConnectionPool {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url).expect(&format!("Error connecting to {}", database_url))
-}
-
-fn list_users() {
-    use schema::users::dsl::*;
-
-    let connection = establish_connection();
-    let results = users
-        .limit(5)
-        .load::<User>(&connection)
-        .expect("Error loading posts");
-
-    println!("Displaying {} posts", results.len());
-    for post in results {
-        println!("{}", post.name);
-    }
+    let manager = ConnectionManager::new(database_url);
+    r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.")
 }
 
 /*
@@ -67,13 +59,13 @@ struct User {
 struct Query;
 struct Mutation;
 
-graphql_object!(Query: () |&self| {
+graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
         use schema::users::dsl::*;
 
-        let connection = establish_connection();
+        let connection = executor.context().db.get().unwrap();
         users
-            .limit(5)
+            .limit(10)
             .load::<User>(&connection)
             .map_err(|e| {
                 FieldError::new("No users", graphql_value!({"one": "two"}))
@@ -87,11 +79,11 @@ struct UserInput {
     name: String,
 }
 
-graphql_object!(Mutation: () |&self| {
+graphql_object!(Mutation: Ctx |&self| {
     field create_user(&executor, input: UserInput) -> FieldResult<User> {
         use schema::users::dsl::*;
 
-        let connection = establish_connection();
+        let connection = executor.context().db.get().unwrap();
         diesel::insert_into(users)
         .values(&input)
         .get_result(&connection)
@@ -107,13 +99,17 @@ graphql_object!(Mutation: () |&self| {
 // Request queries can be executed against a RootNode.
 type Schema = juniper::RootNode<'static, Query, Mutation>;
 
+struct Ctx {
+    db: ConnectionPool,
+}
+
 fn main() {
     pretty_env_logger::init();
 
     let addr = ([127, 0, 0, 1], 3000).into();
 
     let root_node = Arc::new(Schema::new(Query, Mutation));
-    let ctx = Arc::new(());
+    let ctx = Arc::new(Ctx { db: db_pool() });
 
     let new_service = move || {
         let root_node = root_node.clone();
