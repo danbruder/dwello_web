@@ -25,6 +25,7 @@ extern crate hyper;
 extern crate juniper_hyper;
 extern crate pretty_env_logger;
 use futures::future;
+use hyper::header::Authorization;
 use hyper::rt::{self, Future};
 use hyper::service::service_fn;
 use hyper::Method;
@@ -117,6 +118,7 @@ fn main() {
         service_fn(move |req| -> Box<Future<Item = _, Error = _> + Send> {
             let root_node = root_node.clone();
             let ctx = ctx.clone();
+            let has_auth_header = req.headers.get().has::<Authorization>();
             match (req.method(), req.uri().path()) {
                 (&Method::GET, "/") => Box::new(juniper_hyper::graphiql("/graphql")),
                 (&Method::GET, "/graphql") => Box::new(juniper_hyper::graphql(root_node, ctx, req)),
