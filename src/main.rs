@@ -15,7 +15,6 @@ extern crate rocket_contrib;
 use juniper::{ FieldError, FieldResult };
 use diesel::pg::PgConnection;
 use diesel::r2d2;
-use diesel::result::{DatabaseErrorKind};
 use dotenv::dotenv;
 use std::env;
 use diesel::prelude::*;
@@ -107,13 +106,15 @@ graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
         use schema::users::dsl::*;
 
+        if executor.context().user.is_none() { 
+            return Err(FieldError::new("Access denied", graphql_value!("")));
+        }
+
         let connection = executor.context().pool.get().unwrap();
         users
             .limit(10)
             .load::<User>(&connection)
-            .map_err(|e| {
-                FieldError::new("No users", graphql_value!({"one": "two"}))
-            })
+            .or(Ok(vec![]))
     }
 });
 
@@ -142,7 +143,6 @@ graphql_object!(Mutation: Ctx |&self| {
             updated: chrono::Utc::now().naive_utc(),
             hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
         };
-
         diesel::insert_into(sessions)
             .values(&new_session)
             .execute(&connection)?;
@@ -154,27 +154,38 @@ graphql_object!(Mutation: Ctx |&self| {
         })
     }
 
-    field register_user(&executor, input: RegistrationInput) -> FieldResult<User> {
+    field register_user(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
-
-        let hash = bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?;
-        let new_user = NewUser{
-            name: input.name,
-            email: input.email,
-            password_hash: hash
-        };
+        use schema::sessions::dsl::*;
 
         let connection = executor.context().pool.get().unwrap();
-        diesel::insert_into(users)
-            .values(&new_user)
-            .get_result(&connection)
-            .map_err(|e| {
-                match e {
-                    diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _) => FieldError::new("address is already taken", graphql_value!({"email": "address is already taken"})),
-                    _ => FieldError::new("Registration error", graphql_value!(""))
 
-                }
+        // Create user
+        let user = diesel::insert_into(users)
+            .values(&NewUser{
+                name: input.name,
+                email: input.email,
+                password_hash: bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?
             })
+            .get_result::<User>(&connection)?;
+
+        // Create a new session
+        let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
+        let new_session = NewSession{
+            uid: user.id,
+            created: chrono::Utc::now().naive_utc(),
+            updated: chrono::Utc::now().naive_utc(),
+            hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
+        };
+
+        let session = diesel::insert_into(sessions)
+            .values(&new_session)
+            .get_result::<Session>(&connection)?;
+
+        Ok(AuthPayload{
+            token: new_session.hash,
+            user: user
+        })
     }
 });
 
@@ -182,7 +193,6 @@ type Schema = juniper::RootNode<'static, Query, Mutation>;
 
 struct Ctx {
     user: Option<User>,
-    session: Option<Session>,
     pool: ConnectionPool
 }
 
@@ -197,7 +207,7 @@ struct ApiKey(String);
 
 /// Returns true if `key` is a valid API key string.
 fn is_valid(key: &str) -> bool {
-    key == "valid_api_key"
+    key.len() > 0
 }
 
 #[derive(Debug)]
@@ -241,11 +251,10 @@ fn post_graphql_handler(
 
     // Load session and user
     let mut user = None;
-    let found_session = sessions 
+    let session = sessions 
         .filter(hash.eq(key.0))
         .first::<Session>(&connection).ok();
-    let session = found_session.clone();
-    if let Some(s) = found_session { 
+    if let Some(s) = session { 
         user = users 
             .filter(id.eq(s.uid))
             .first::<User>(&connection).ok();
@@ -255,7 +264,6 @@ fn post_graphql_handler(
     let context = Ctx{
         pool: db.pool.clone(),
         user: user,
-        session: session
     };
 
     request.execute(&schema, &context)
