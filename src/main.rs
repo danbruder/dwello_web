@@ -61,7 +61,6 @@ struct User {
 struct Session {
     id: i32,
     uid: i32,
-    user: User,
     created: chrono::NaiveDateTime,
     updated: chrono::NaiveDateTime,
     #[graphql(skip)]
@@ -108,7 +107,7 @@ graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
         use schema::users::dsl::*;
 
-        let connection = executor.context().db.get().unwrap();
+        let connection = executor.context().pool.get().unwrap();
         users
             .limit(10)
             .load::<User>(&connection)
@@ -122,7 +121,7 @@ graphql_object!(Mutation: Ctx |&self| {
     field login(&executor, input: LoginInput) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
         use schema::sessions::dsl::*;
-        let connection = executor.context().db.get().unwrap();
+        let connection = executor.context().pool.get().unwrap();
 
         // Load user
         let user = users
@@ -165,7 +164,7 @@ graphql_object!(Mutation: Ctx |&self| {
             password_hash: hash
         };
 
-        let connection = executor.context().db.get().unwrap();
+        let connection = executor.context().pool.get().unwrap();
         diesel::insert_into(users)
             .values(&new_user)
             .get_result(&connection)
@@ -182,9 +181,14 @@ graphql_object!(Mutation: Ctx |&self| {
 type Schema = juniper::RootNode<'static, Query, Mutation>;
 
 struct Ctx {
-    db: ConnectionPool,
+    user: Option<User>,
+    session: Option<Session>,
+    pool: ConnectionPool
 }
 
+struct Db { 
+    pool: ConnectionPool,
+}
 
 /*
  * Rocket stuff
@@ -225,17 +229,40 @@ fn graphiql() -> content::Html<String> {
 
 #[post("/graphql", data = "<request>")]
 fn post_graphql_handler(
-    _key: ApiKey,
-    context: State<Ctx>,
+    key: ApiKey,
+    db: State<Db>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,
 ) -> juniper_rocket::GraphQLResponse {
+    use schema::users::dsl::*;
+    use schema::users::dsl::id;
+    use schema::sessions::dsl::*;
+    let connection = db.pool.get().unwrap();
+
+    // Load session and user
+    let mut user = None;
+    let found_session = sessions 
+        .filter(hash.eq(key.0))
+        .first::<Session>(&connection).ok();
+    let session = found_session.clone();
+    if let Some(s) = found_session { 
+        user = users 
+            .filter(id.eq(s.uid))
+            .first::<User>(&connection).ok();
+    }
+
+    let context = Ctx{
+        pool: db.pool.clone(),
+        user: user,
+        session: session
+    };
+
     request.execute(&schema, &context)
 }
 
 fn main() {
     rocket::ignite()
-        .manage(Ctx{ db: db_pool()})
+        .manage(Db { pool: db_pool()})
         .manage(Schema::new(
                 Query, 
                 Mutation
