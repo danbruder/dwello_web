@@ -1,0 +1,4 @@
+-- Your SQL goes here
+ALTER TABLE users ADD COLUMN email VARCHAR NOT NULL UNIQUE;
+ALTER TABLE users ADD COLUMN password_hash VARCHAR NOT NULL;
+

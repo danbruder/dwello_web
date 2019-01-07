@@ -1,35 +1,34 @@
 #![feature(decl_macro, proc_macro_hygiene)]
+#![allow(proc_macro_derive_resolution_fallback)]
 
-#[macro_use]
-extern crate juniper;
-
-use juniper::{EmptyMutation, FieldError, FieldResult, Variables};
-
-/*
-* Diesel stuff
-*/
-#[macro_use]
-extern crate diesel;
+extern crate bcrypt;
+extern crate serde;
+extern crate serde_json;
 extern crate dotenv;
+extern crate juniper_rocket;
+extern crate rocket_contrib;
 
+#[macro_use] extern crate serde_derive;
+#[macro_use] extern crate juniper;
+#[macro_use] extern crate diesel;
+#[macro_use] extern crate rocket;
+
+use juniper::{ FieldError, FieldResult };
 use diesel::pg::PgConnection;
 use diesel::prelude::*;
 use diesel::r2d2;
+use diesel::result::{DatabaseErrorKind};
 use dotenv::dotenv;
 use std::env;
-pub mod schema;
-use self::diesel::prelude::*;
-use schema::users;
-
-// Hyper stuff
-extern crate juniper_rocket;
-#[macro_use] extern crate rocket;
-
+use diesel::prelude::*;
 use rocket::response::content;
 use rocket::State;
+use rocket::Outcome;
+use rocket::http::Status;
+use rocket::request::{self, Request, FromRequest};
 
-use juniper::RootNode;
-use std::sync::Arc;
+mod schema;
+use schema::users;
 
 pub type ConnectionManager = r2d2::ConnectionManager<PgConnection>;
 pub type ConnectionPool = r2d2::Pool<ConnectionManager>;
@@ -44,18 +43,47 @@ pub fn db_pool() -> ConnectionPool {
         .expect("Failed to create pool.")
 }
 
+struct Query;
+struct Mutation;
+
 /*
 * Juniper stuff
 */
-
 #[derive(GraphQLObject, Clone, Queryable)]
 struct User {
     id: i32,
     name: String,
+    email: String,
+    #[graphql(skip)]
+    password_hash: String,
 }
 
-struct Query;
-struct Mutation;
+#[derive(GraphQLInputObject, Clone)]
+struct RegistrationInput {
+    name: String,
+    email: String,
+    password: String,
+}
+
+#[derive(GraphQLInputObject, Clone)]
+struct LoginInput {
+    email: String,
+    password: String,
+}
+
+#[derive(GraphQLObject, Clone)]
+struct AuthPayload {
+    token: String,
+    user: User
+}
+
+#[derive(Insertable)]
+#[table_name = "users"]
+struct NewUser {
+    name: String,
+    email: String,
+    password_hash: String,
+}
 
 graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
@@ -71,30 +99,48 @@ graphql_object!(Query: Ctx |&self| {
     }
 });
 
-#[derive(GraphQLInputObject, Clone, Insertable)]
-#[table_name = "users"]
-struct UserInput {
-    name: String,
-}
-
 graphql_object!(Mutation: Ctx |&self| {
-    field create_user(&executor, input: UserInput) -> FieldResult<User> {
+    field login(&executor, input: LoginInput) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
+        let connection = executor.context().db.get().unwrap();
+
+        // Load user
+        let user = users
+            .filter(email.eq(input.email))
+            .first::<User>(&connection)?;
+
+        // Create a session
+        // Create a token
+        Ok(AuthPayload{
+            token: "valid_api_key".to_string(),
+            user: user
+        })
+    }
+
+    field register_user(&executor, input: RegistrationInput) -> FieldResult<User> {
+        use schema::users::dsl::*;
+
+        let hash = bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?;
+        let new_user = NewUser{
+            name: input.name,
+            email: input.email,
+            password_hash: hash
+        };
 
         let connection = executor.context().db.get().unwrap();
         diesel::insert_into(users)
-        .values(&input)
-        .get_result(&connection)
+            .values(&new_user)
+            .get_result(&connection)
             .map_err(|e| {
-                FieldError::new("Error inserting user", graphql_value!({"one": "two"}))
+                match e {
+                    diesel::result::Error::DatabaseError(DatabaseErrorKind::UniqueViolation, _) => FieldError::new("address is already taken", graphql_value!({"email": "address is already taken"})),
+                    _ => FieldError::new("Registration error", graphql_value!(""))
+
+                }
             })
     }
 });
 
-// Arbitrary context data.
-
-// A root schema consists of a query and a mutation.
-// Request queries can be executed against a RootNode.
 type Schema = juniper::RootNode<'static, Query, Mutation>;
 
 struct Ctx {
@@ -105,6 +151,37 @@ struct Ctx {
 /*
  * Rocket stuff
  */
+
+
+struct ApiKey(String);
+
+/// Returns true if `key` is a valid API key string.
+fn is_valid(key: &str) -> bool {
+    key == "valid_api_key"
+}
+
+#[derive(Debug)]
+enum ApiKeyError {
+    BadCount,
+    Missing,
+    Invalid,
+}
+
+impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
+    type Error = ApiKeyError;
+
+    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
+        let keys: Vec<_> = request.headers().get("x-api-key").collect();
+        match keys.len() {
+            0 => Outcome::Failure((Status::BadRequest, ApiKeyError::Missing)),
+            1 if is_valid(keys[0]) => Outcome::Success(ApiKey(keys[0].to_string())),
+            1 => Outcome::Failure((Status::BadRequest, ApiKeyError::Invalid)),
+            _ => Outcome::Failure((Status::BadRequest, ApiKeyError::BadCount)),
+        }
+    }
+}
+
+
 #[get("/")]
 fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
@@ -112,6 +189,7 @@ fn graphiql() -> content::Html<String> {
 
 #[post("/graphql", data = "<request>")]
 fn post_graphql_handler(
+    key: ApiKey,
     context: State<Ctx>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,
@@ -128,7 +206,7 @@ fn main() {
         ))
         .mount(
             "/",
-            routes![graphiql, post_graphql_handler],
+            routes![graphiql, post_graphql_handler ],
         )
         .launch();
 }
