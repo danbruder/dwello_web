@@ -27,6 +27,7 @@ use rocket::request::{self, Request, FromRequest};
 
 mod schema;
 use schema::users;
+use schema::sessions;
 
 pub type ConnectionManager = r2d2::ConnectionManager<PgConnection>;
 pub type ConnectionPool = r2d2::Pool<ConnectionManager>;
@@ -68,6 +69,7 @@ struct Session {
 }
 
 #[derive(Insertable)]
+#[table_name = "sessions"]
 struct NewSession {
     uid: i32,
     created: chrono::NaiveDateTime,
@@ -127,21 +129,28 @@ graphql_object!(Mutation: Ctx |&self| {
             .filter(email.eq(input.email))
             .first::<User>(&connection)?;
 
-        let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::offset::Local::now());
+        // Check password
+        match bcrypt::verify(&input.password, &user.password_hash)  {
+            Ok(true) => (),
+            _ => return Err(FieldError::new("Invalid password", graphql_value!("")))
+        }
+
+        // Create a new session
+        let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
         let new_session = NewSession{
             uid: user.id,
-            created: chrono:::
-            updated: chrono::offset::Local::now(),
+            created: chrono::Utc::now().naive_utc(),
+            updated: chrono::Utc::now().naive_utc(),
             hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
         };
-        // Create a session
+
         diesel::insert_into(sessions)
             .values(&new_session)
-            .get_result(&connection)?;
+            .execute(&connection)?;
 
-        // Create a token
+        // Return the auth payload
         Ok(AuthPayload{
-            token: "valid_api_key".to_string(),
+            token: new_session.hash,
             user: user
         })
     }
