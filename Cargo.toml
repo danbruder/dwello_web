@@ -6,12 +6,14 @@ authors = ["dan@debassociates.com"]
 [dependencies]
 rocket = "0.4.0"
 juniper_rocket = "0.2.0"
-diesel = { version = "1.0.0", features = ["postgres", "r2d2"] }
+diesel = { version = "1.0.0", features = ["postgres", "r2d2", "chrono"] }
 dotenv = "0.9.0"
 bcrypt = "0.2"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
+chrono = "0.4.6"
+md5 = "0.6.1"
 
 [dependencies.juniper]
 version = "0.11.1"

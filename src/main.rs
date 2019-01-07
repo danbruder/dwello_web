@@ -8,14 +8,12 @@ extern crate dotenv;
 extern crate juniper_rocket;
 extern crate rocket_contrib;
 
-#[macro_use] extern crate serde_derive;
 #[macro_use] extern crate juniper;
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate rocket;
 
 use juniper::{ FieldError, FieldResult };
 use diesel::pg::PgConnection;
-use diesel::prelude::*;
 use diesel::r2d2;
 use diesel::result::{DatabaseErrorKind};
 use dotenv::dotenv;
@@ -56,6 +54,25 @@ struct User {
     email: String,
     #[graphql(skip)]
     password_hash: String,
+}
+
+#[derive(GraphQLObject, Clone, Queryable)]
+struct Session {
+    id: i32,
+    uid: i32,
+    user: User,
+    created: chrono::NaiveDateTime,
+    updated: chrono::NaiveDateTime,
+    #[graphql(skip)]
+    hash: String,
+}
+
+#[derive(Insertable)]
+struct NewSession {
+    uid: i32,
+    created: chrono::NaiveDateTime,
+    updated: chrono::NaiveDateTime,
+    hash: String,
 }
 
 #[derive(GraphQLInputObject, Clone)]
@@ -102,6 +119,7 @@ graphql_object!(Query: Ctx |&self| {
 graphql_object!(Mutation: Ctx |&self| {
     field login(&executor, input: LoginInput) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
+        use schema::sessions::dsl::*;
         let connection = executor.context().db.get().unwrap();
 
         // Load user
@@ -109,7 +127,18 @@ graphql_object!(Mutation: Ctx |&self| {
             .filter(email.eq(input.email))
             .first::<User>(&connection)?;
 
+        let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::offset::Local::now());
+        let new_session = NewSession{
+            uid: user.id,
+            created: chrono:::
+            updated: chrono::offset::Local::now(),
+            hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
+        };
         // Create a session
+        diesel::insert_into(sessions)
+            .values(&new_session)
+            .get_result(&connection)?;
+
         // Create a token
         Ok(AuthPayload{
             token: "valid_api_key".to_string(),
@@ -151,8 +180,6 @@ struct Ctx {
 /*
  * Rocket stuff
  */
-
-
 struct ApiKey(String);
 
 /// Returns true if `key` is a valid API key string.
@@ -189,7 +216,7 @@ fn graphiql() -> content::Html<String> {
 
 #[post("/graphql", data = "<request>")]
 fn post_graphql_handler(
-    key: ApiKey,
+    _key: ApiKey,
     context: State<Ctx>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,

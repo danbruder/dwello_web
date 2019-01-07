@@ -1,0 +1,8 @@
+-- Your SQL goes here
+CREATE TABLE sessions (
+  id SERIAL PRIMARY KEY,
+  uid INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+  created TIMESTAMP NOT NULL,
+  updated TIMESTAMP NOT NULL,
+  hash TEXT NOT NULL 
+);
