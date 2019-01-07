@@ -251,6 +251,7 @@ fn post_graphql_handler(
             .first::<User>(&connection).ok();
     }
 
+    // Create new context
     let context = Ctx{
         pool: db.pool.clone(),
         user: user,
