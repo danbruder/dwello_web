@@ -135,6 +135,11 @@ graphql_object!(Mutation: Ctx |&self| {
             _ => return Err(FieldError::new("Invalid password", graphql_value!("")))
         }
 
+        // Delete old sessions
+        diesel::delete(sessions)
+            .filter(uid.eq(user.id))
+            .execute(&connection)?;
+
         // Create a new session
         let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
         let new_session = NewSession{
