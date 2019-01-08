@@ -265,37 +265,19 @@ fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
 }
 
-#[get("/graphql?<request>")]
-fn get_graphql_handler(
-    //key: ApiKey,
-    db: State<Db>,
-    request: juniper_rocket::GraphQLRequest,
-    schema: State<Schema>,
-) -> juniper_rocket::GraphQLResponse {
-    //let user = user_from_key(db.pool.clone(), key);
-    // Create new context
-    let context = Ctx{
-        pool: db.pool.clone(),
-        //user: user,
-        user: None
-    };
-
-    request.execute(&schema, &context)
-}
-
 #[post("/graphql", data = "<request>")]
 fn post_graphql_handler(
-    //key: ApiKey,
+    key: ApiKey,
     db: State<Db>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,
 ) -> juniper_rocket::GraphQLResponse {
-    //let user = user_from_key(db.pool.clone(), key);
+    let user = user_from_key(db.pool.clone(), key);
+
     // Create new context
     let context = Ctx{
         pool: db.pool.clone(),
-        //user: user,
-        user: None
+        user: user,
     };
 
     request.execute(&schema, &context)
@@ -310,7 +292,7 @@ fn main() {
         ))
         .mount(
             "/",
-            routes![graphiql, post_graphql_handler, get_graphql_handler],
+            routes![graphiql, post_graphql_handler],
         )
         .launch();
 }
