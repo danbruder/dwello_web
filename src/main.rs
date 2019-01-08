@@ -206,13 +206,36 @@ struct Db {
 }
 
 /*
+ * Helpers
+ */ 
+fn user_from_key(pool: ConnectionPool, key: ApiKey) -> Option<User> {
+    use schema::users::dsl::*;
+    use schema::users::dsl::id;
+    use schema::sessions::dsl::*;
+    let connection = pool.get().unwrap();
+
+    // Load session and user
+    let mut user = None;
+    let session = sessions 
+        .filter(hash.eq(key.0))
+        .first::<Session>(&connection).ok();
+    if let Some(s) = session { 
+        user = users 
+            .filter(id.eq(s.uid))
+            .first::<User>(&connection).ok();
+    }
+
+    user
+}
+
+/*
  * Rocket stuff
  */
 struct ApiKey(String);
 
 /// Returns true if `key` is a valid API key string.
-fn is_valid(key: &str) -> bool {
-    key.len() > 0
+fn is_valid(_key: &str) -> bool {
+    true
 }
 
 #[derive(Debug)]
@@ -242,33 +265,37 @@ fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
 }
 
-#[post("/graphql", data = "<request>")]
-fn post_graphql_handler(
-    key: ApiKey,
+#[get("/graphql?<request>")]
+fn get_graphql_handler(
+    //key: ApiKey,
     db: State<Db>,
     request: juniper_rocket::GraphQLRequest,
     schema: State<Schema>,
 ) -> juniper_rocket::GraphQLResponse {
-    use schema::users::dsl::*;
-    use schema::users::dsl::id;
-    use schema::sessions::dsl::*;
-    let connection = db.pool.get().unwrap();
-
-    // Load session and user
-    let mut user = None;
-    let session = sessions 
-        .filter(hash.eq(key.0))
-        .first::<Session>(&connection).ok();
-    if let Some(s) = session { 
-        user = users 
-            .filter(id.eq(s.uid))
-            .first::<User>(&connection).ok();
-    }
-
+    //let user = user_from_key(db.pool.clone(), key);
     // Create new context
     let context = Ctx{
         pool: db.pool.clone(),
-        user: user,
+        //user: user,
+        user: None
+    };
+
+    request.execute(&schema, &context)
+}
+
+#[post("/graphql", data = "<request>")]
+fn post_graphql_handler(
+    //key: ApiKey,
+    db: State<Db>,
+    request: juniper_rocket::GraphQLRequest,
+    schema: State<Schema>,
+) -> juniper_rocket::GraphQLResponse {
+    //let user = user_from_key(db.pool.clone(), key);
+    // Create new context
+    let context = Ctx{
+        pool: db.pool.clone(),
+        //user: user,
+        user: None
     };
 
     request.execute(&schema, &context)
@@ -283,7 +310,8 @@ fn main() {
         ))
         .mount(
             "/",
-            routes![graphiql, post_graphql_handler ],
+            routes![graphiql, post_graphql_handler, get_graphql_handler],
         )
         .launch();
 }
+
