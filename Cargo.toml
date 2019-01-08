@@ -1,15 +1,24 @@
 [package]
-name = "juniper-example"
+name = "main"
 version = "0.1.0"
-authors = ["pyros2097 <pyros2097@gmail.com>"]
+authors = ["dan@debassociates.com"]
 
 [dependencies]
-env_logger = "0.5"
-
+rocket = "0.4.0"
+juniper_rocket = "0.2.0"
+diesel = { version = "1.0.0", features = ["postgres", "r2d2", "chrono"] }
+dotenv = "0.9.0"
+bcrypt = "0.2"
 serde = "1.0"
 serde_json = "1.0"
 serde_derive = "1.0"
+chrono = "0.4.6"
 
-juniper = "0.11.1"
-juniper_rocket = "0.2.0"
-rocket = "0.4.0"
+[dependencies.juniper]
+version = "0.11.1"
+features = ["expose-test-schema", "serde_json"]
+
+[dependencies.rocket_contrib]
+version = "0.4.0"
+default-features = false
+features = ["json"]
