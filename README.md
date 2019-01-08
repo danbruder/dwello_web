@@ -1,15 +1,20 @@
-# juniper
+# Scout API
 
-Juniper integration for Actix web
+API Server for Scout App
 
-### server
+## Getting started
+
+Be sure the rust toolchains are set up on your machine.
+
+Setup
 
 ```bash
-cd examples/juniper
-cargo run (or ``cargo watch -x run``)
-# Started http server: 127.0.0.1:8080
+rustup override set nightly
+diesel database reset
 ```
 
-### web client
+Run server
 
-[http://127.0.0.1:8080/graphiql](http://127.0.0.1:8080/graphiql)
+```bash
+cargo run
+```
