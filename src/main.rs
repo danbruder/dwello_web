@@ -25,13 +25,17 @@ use rocket::http::Status;
 use rocket::request::{self, Request, FromRequest};
 
 mod schema;
-use schema::users;
+mod user;
+mod error;
 use schema::sessions;
+use user::{User,NewUser};
 
 pub type ConnectionManager = r2d2::ConnectionManager<PgConnection>;
 pub type ConnectionPool = r2d2::Pool<ConnectionManager>;
+pub type PooledConnection = r2d2::PooledConnection<ConnectionManager>;
 
-pub fn db_pool() -> ConnectionPool {
+
+fn db_pool() -> ConnectionPool {
     dotenv().ok();
 
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
@@ -47,15 +51,6 @@ struct Mutation;
 /*
 * Juniper stuff
 */
-#[derive(GraphQLObject, Clone, Queryable)]
-struct User {
-    id: i32,
-    name: String,
-    email: String,
-    #[graphql(skip)]
-    password_hash: String,
-}
-
 #[derive(GraphQLObject, Clone, Queryable)]
 struct Session {
     id: i32,
@@ -94,27 +89,11 @@ struct AuthPayload {
     user: User
 }
 
-#[derive(Insertable)]
-#[table_name = "users"]
-struct NewUser {
-    name: String,
-    email: String,
-    password_hash: String,
-}
-
 graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
-        use schema::users::dsl::*;
-
-        if executor.context().user.is_none() { 
-            return Err(FieldError::new("Access denied", graphql_value!("")));
-        }
-
+        let current_user = executor.context().user;
         let connection = executor.context().pool.get().unwrap();
-        users
-            .limit(10)
-            .load::<User>(&connection)
-            .or(Ok(vec![]))
+        User::all_users(connection, current_user)
     }
 });
 
