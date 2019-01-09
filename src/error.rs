@@ -2,17 +2,18 @@
 // error.rs
 //
 
-use juniper::{FieldError,IntoFieldError};
+use std::fmt::{Display,Formatter,Result};
 
 #[derive(Debug)]
 pub enum ScoutError { 
-    AccessDeined
+    AccessDenied
 }
 
-impl<ScoutError> IntoFieldError<ScoutError> for FieldError<ScoutError> {
-    fn into_field_error(self) -> FieldError {
+
+impl Display for ScoutError { 
+    fn fmt(&self, f: &mut Formatter) -> Result{
         match self { 
-            ScoutError::AccessDeined => FieldError::new("Access denied", graphql_value!(""))
+            ScoutError::AccessDenied => write!(f, "Access denied")
         }
     }
 }

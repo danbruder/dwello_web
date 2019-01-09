@@ -91,7 +91,7 @@ struct AuthPayload {
 
 graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
-        let current_user = executor.context().user;
+        let current_user = executor.context().user.clone();
         let connection = executor.context().pool.get().unwrap();
         User::all_users(connection, current_user)
     }

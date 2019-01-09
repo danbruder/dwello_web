@@ -5,6 +5,7 @@
 use schema::users;
 use super::PooledConnection;
 use error::ScoutError;
+use juniper::{FieldResult,FieldError};
 use diesel::prelude::*;
 
 #[derive(GraphQLObject, Clone, Queryable)]
@@ -25,11 +26,11 @@ pub struct NewUser {
 }
 
 impl User {
-     pub fn all_users(connection: PooledConnection, current_user: Option<User>) -> Result<Vec<User>, ScoutError> {
+     pub fn all_users(connection: PooledConnection, current_user: Option<User>) -> FieldResult<Vec<User>> {
         use schema::users::dsl::*;
 
         if current_user.is_none() { 
-            return Err(ScoutError::AccessDeined);
+            return Err(FieldError::from(ScoutError::AccessDenied));
         }
 
         users
