@@ -13,7 +13,6 @@ extern crate rocket_contrib;
 #[macro_use] extern crate rocket;
 
 use juniper::{ FieldResult };
-use diesel::prelude::*;
 use rocket::response::content;
 use rocket::State;
 use rocket::Outcome;
@@ -37,29 +36,23 @@ struct Mutation;
 */
 graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
-        let current_user = executor.context().user.clone();
-        let connection = executor.context().pool.get().unwrap();
-        User::all_users(connection, current_user)
+        User::all_users(executor)
     }
 });
 
 graphql_object!(Mutation: Ctx |&self| {
     field login(&executor, input: LoginInput) -> FieldResult<AuthPayload> {
-        let conn = executor.context().pool.get().unwrap();
-        let current_user = executor.context().user.clone();
-        Auth::login(conn, current_user, input)
+        Auth::login(executor, input)
     }
 
     field register_user(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
-        let conn = executor.context().pool.get().unwrap();
-        let current_user = executor.context().user.clone();
-        Auth::register_user(conn, current_user, input)
+        Auth::register_user(executor, input)
     }
 });
 
 type Schema = juniper::RootNode<'static, Query, Mutation>;
 
-struct Ctx {
+pub struct Ctx {
     user: Option<User>,
     pool: ConnectionPool
 }

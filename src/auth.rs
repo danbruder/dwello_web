@@ -3,11 +3,12 @@
 //
 
 use db::{PooledConnection};
-use juniper::{FieldResult,FieldError};
+use juniper::{FieldResult,FieldError,Executor};
 use diesel::prelude::*;
 use schema::{sessions};
 use user::{User,NewUser};
 use super::ApiKey;
+use super::Ctx;
 
 #[derive(GraphQLObject, Clone, Queryable)]
 struct Session {
@@ -51,12 +52,12 @@ pub struct Auth;
 
 impl Auth { 
     pub fn login(
-        conn: PooledConnection,
-        current_user: Option<User>,
+        executor: &Executor<Ctx>,
         input: LoginInput
         ) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
         use schema::sessions::dsl::*;
+        let conn = executor.context().pool.get().unwrap();
 
         // Load user
         let user = users
@@ -94,12 +95,12 @@ impl Auth {
     }
 
     pub fn register_user(
-        conn: PooledConnection,
-        current_user: Option<User>,
+        executor: &Executor<Ctx>,
         input: RegistrationInput 
 ) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
         use schema::sessions::dsl::*;
+        let conn = executor.context().pool.get().unwrap();
 
         // Create user
         let user = diesel::insert_into(users)
@@ -119,9 +120,9 @@ impl Auth {
             hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
         };
 
-        let session = diesel::insert_into(sessions)
+        diesel::insert_into(sessions)
             .values(&new_session)
-            .get_result::<Session>(&conn)?;
+            .execute(&conn)?;
 
         Ok(AuthPayload{
             token: new_session.hash,
