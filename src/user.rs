@@ -3,7 +3,7 @@
 //
 
 use schema::users;
-use super::PooledConnection;
+use db::PooledConnection;
 use error::ScoutError;
 use juniper::{FieldResult,FieldError};
 use diesel::prelude::*;
@@ -36,7 +36,7 @@ impl User {
         users
             .limit(10)
             .load::<User>(&connection)
-            .or(Ok(vec![]))
+            .map_err(|e| FieldError::from(e))
     }
 }
 
