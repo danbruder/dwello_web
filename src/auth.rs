@@ -11,7 +11,7 @@ use super::ApiKey;
 use super::Ctx;
 
 #[derive(GraphQLObject, Clone, Queryable)]
-struct Session {
+pub struct Session {
     id: i32,
     uid: i32,
     #[graphql(skip)]
@@ -58,7 +58,6 @@ impl Auth {
         input: LoginInput
         ) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
-        use schema::sessions::dsl::*;
         let conn = executor.context().pool.get().unwrap();
 
         // Load user
@@ -67,32 +66,18 @@ impl Auth {
             .first::<User>(&conn)?;
 
         // Check password
+        // Handle case where user doesn't exist
         match bcrypt::verify(&input.password, &user.password_hash)  {
             Ok(true) => (),
             _ => return Err(FieldError::new("Invalid password", graphql_value!("")))
         }
 
-        //// Delete old sessions
-        //diesel::delete(sessions)
-            //.filter(uid.eq(user.id))
-            //.execute(&conn)?;
-
         // Create a new session
-        let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
-        let new_session = NewSession{
-            uid: user.id,
-            token: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?,
-            active: true,
-            created: chrono::Utc::now().naive_utc(),
-            updated: chrono::Utc::now().naive_utc(),
-        };
-        diesel::insert_into(sessions)
-            .values(&new_session)
-            .execute(&conn)?;
+        let session = Auth::new_session(conn, &user)?;
 
         // Return the auth payload
         Ok(AuthPayload{
-            token: new_session.token,
+            token: session.token,
             user: user
         })
     }
@@ -102,7 +87,6 @@ impl Auth {
         input: RegistrationInput 
 ) -> FieldResult<AuthPayload> {
         use schema::users::dsl::*;
-        use schema::sessions::dsl::*;
         let conn = executor.context().pool.get().unwrap();
 
         // Create user
@@ -114,24 +98,39 @@ impl Auth {
             })
             .get_result::<User>(&conn)?;
 
+
+        let session = Auth::new_session(conn, &user)?;
+
+        Ok(AuthPayload{
+            token: session.token,
+            user: user
+        })
+    }
+
+    pub fn new_session(conn: PooledConnection, user: &User) -> Result<Session, FieldError> {
+        use schema::sessions::dsl::*;
+
+        // Set old sessions as inactive
+        // Handle case where no user session exists
+        diesel::update(sessions)
+            .filter(uid.eq(user.id))
+            .set(active.eq(false))
+            .execute(&conn)?;
+
         // Create a new session
-        let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
+        let hash_base = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
         let new_session = NewSession{
             uid: user.id,
-            token: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?,
-                active: true,
+            token: bcrypt::hash(&hash_base, bcrypt::DEFAULT_COST)?,
+            active: true,
             created: chrono::Utc::now().naive_utc(),
             updated: chrono::Utc::now().naive_utc(),
         };
 
         diesel::insert_into(sessions)
             .values(&new_session)
-            .execute(&conn)?;
-
-        Ok(AuthPayload{
-            token: new_session.token,
-            user: user
-        })
+            .get_result(&conn)
+            .map_err(|e| FieldError::from(e))
     }
 
     pub fn user_from_key(conn: PooledConnection, key: ApiKey) -> Option<User> {
@@ -152,5 +151,4 @@ impl Auth {
 
         user
     }
-
 }
