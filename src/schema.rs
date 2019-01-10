@@ -2,9 +2,10 @@ table! {
     sessions (id) {
         id -> Int4,
         uid -> Int4,
+        token -> Text,
+        active -> Bool,
         created -> Timestamp,
         updated -> Timestamp,
-        hash -> Text,
     }
 }
 

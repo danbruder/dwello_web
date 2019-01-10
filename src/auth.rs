@@ -14,19 +14,21 @@ use super::Ctx;
 struct Session {
     id: i32,
     uid: i32,
+    #[graphql(skip)]
+    token: String,
+    active: bool,
     created: chrono::NaiveDateTime,
     updated: chrono::NaiveDateTime,
-    #[graphql(skip)]
-    hash: String,
 }
 
 #[derive(Insertable)]
 #[table_name = "sessions"]
 struct NewSession {
     uid: i32,
+    token: String,
+    active: bool,
     created: chrono::NaiveDateTime,
     updated: chrono::NaiveDateTime,
-    hash: String,
 }
 
 #[derive(GraphQLInputObject, Clone)]
@@ -70,18 +72,19 @@ impl Auth {
             _ => return Err(FieldError::new("Invalid password", graphql_value!("")))
         }
 
-        // Delete old sessions
-        diesel::delete(sessions)
-            .filter(uid.eq(user.id))
-            .execute(&conn)?;
+        //// Delete old sessions
+        //diesel::delete(sessions)
+            //.filter(uid.eq(user.id))
+            //.execute(&conn)?;
 
         // Create a new session
         let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
         let new_session = NewSession{
             uid: user.id,
+            token: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?,
+            active: true,
             created: chrono::Utc::now().naive_utc(),
             updated: chrono::Utc::now().naive_utc(),
-            hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
         };
         diesel::insert_into(sessions)
             .values(&new_session)
@@ -89,7 +92,7 @@ impl Auth {
 
         // Return the auth payload
         Ok(AuthPayload{
-            token: new_session.hash,
+            token: new_session.token,
             user: user
         })
     }
@@ -115,9 +118,10 @@ impl Auth {
         let hash_bash = format!("{}{}{}", "session", user.id.to_string(), chrono::Utc::now());
         let new_session = NewSession{
             uid: user.id,
+            token: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?,
+                active: true,
             created: chrono::Utc::now().naive_utc(),
             updated: chrono::Utc::now().naive_utc(),
-            hash: bcrypt::hash(&hash_bash, bcrypt::DEFAULT_COST)?
         };
 
         diesel::insert_into(sessions)
@@ -125,7 +129,7 @@ impl Auth {
             .execute(&conn)?;
 
         Ok(AuthPayload{
-            token: new_session.hash,
+            token: new_session.token,
             user: user
         })
     }
@@ -138,7 +142,7 @@ impl Auth {
         // Load session and user
         let mut user = None;
         let session = sessions 
-            .filter(hash.eq(key.0))
+            .filter(token.eq(key.0))
             .first::<Session>(&conn).ok();
         if let Some(s) = session { 
             user = users 
