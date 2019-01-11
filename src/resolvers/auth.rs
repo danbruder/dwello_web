@@ -3,15 +3,11 @@
 //
 
 use auth;
-use juniper::{FieldResult,Executor,IntoFieldError};
+use juniper::{FieldResult,FieldError,Executor};
 use diesel::prelude::*;
 use graphql::Ctx;
-use models::{RegistrationInput,AuthPayload,LoginInput,User,NewUser};
-use error::ScoutError::{InvalidEmail,InvalidPassword, DbError};
+use models::{RegistrationInput,AuthPayload,LoginInput,User,NewUser };
 
-/*
- * Login
- */
 pub fn login(
     executor: &Executor<Ctx>,
     input: LoginInput
@@ -21,18 +17,14 @@ pub fn login(
 
     // Load user
     let user = users
-        .filter(email.eq(&input.email))
-        .first::<User>(&conn)
-        .map_err(|_| {
-            let _ = bcrypt::verify(&input.email, "hash the email to protect against timing attacks");
-            InvalidEmail.into_field_error()
-        })?;
+        .filter(email.eq(input.email))
+        .first::<User>(&conn)?;
 
     // Check password
     // Handle case where user doesn't exist
     match bcrypt::verify(&input.password, &user.password_hash)  {
         Ok(true) => (),
-        _ => return Err(InvalidPassword.into_field_error())
+        _ => return Err(FieldError::new("Invalid password", graphql_value!("")))
     }
 
     // Create a new session
@@ -45,10 +37,7 @@ pub fn login(
     })
 }
 
-/*
- * Register user
- */
-pub fn register(
+pub fn register_user(
     executor: &Executor<Ctx>,
     input: RegistrationInput 
 ) -> FieldResult<AuthPayload> {
@@ -62,8 +51,7 @@ pub fn register(
             email: input.email,
             password_hash: bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?
         })
-        .get_result::<User>(&conn)
-        .map_err(|e| DbError(e).into_field_error())?;
+    .get_result::<User>(&conn)?;
 
 
     let session = auth::new_session(conn, &user)?;

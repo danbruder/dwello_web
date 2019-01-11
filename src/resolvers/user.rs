@@ -2,8 +2,8 @@
 // resolvers/user.rs
 //
 
-use error::ScoutError::{AccessDenied, DbError};
-use juniper::{FieldResult,Executor, IntoFieldError};
+use error::ScoutError;
+use juniper::{FieldResult,FieldError,Executor};
 use diesel::prelude::*;
 use ::models::User;
 use graphql::Ctx;
@@ -16,11 +16,11 @@ pub fn all_users(
     let connection = executor.context().pool.get().unwrap();
 
     if current_user.is_none() { 
-        return Err(AccessDenied.into_field_error());
+        return Err(FieldError::from(ScoutError::AccessDenied));
     }
 
     users
         .limit(10)
         .load::<User>(&connection)
-        .map_err(|e| DbError(e).into_field_error())
+        .map_err(|e| FieldError::from(e))
 }

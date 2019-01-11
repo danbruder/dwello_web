@@ -3,13 +3,12 @@
 //
 
 use db::{PooledConnection};
-use juniper::{FieldError, IntoFieldError};
+use juniper::{FieldError};
 use diesel::prelude::*;
 use web::ApiKey;
 use models::{User,NewSession,Session};
-use error::ScoutError;
 
-pub fn new_session(conn: PooledConnection, user: &User) -> Result<Session, ScoutError> {
+pub fn new_session(conn: PooledConnection, user: &User) -> Result<Session, FieldError> {
     use schema::sessions::dsl::*;
 
     // Set old sessions as inactive
@@ -32,6 +31,7 @@ pub fn new_session(conn: PooledConnection, user: &User) -> Result<Session, Scout
     diesel::insert_into(sessions)
         .values(&new_session)
         .get_result(&conn)
+        .map_err(|e| FieldError::from(e))
 }
 
 pub fn user_from_key(conn: PooledConnection, key: ApiKey) -> Option<User> {
