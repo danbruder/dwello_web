@@ -28,7 +28,7 @@ graphql_object!(Mutation: Ctx |&self| {
         auth::login(executor, input)
     }
 
-    field register_user(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
-        auth::register_user(executor, input)
+    field register(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
+        auth::register(executor, input)
     }
 });
