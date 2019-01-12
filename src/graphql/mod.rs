@@ -2,7 +2,8 @@
 // graphql.rs
 //
 
-use models::{User,LoginInput, AuthPayload, RegistrationInput};
+use models::user::{User};
+use models::graphql::{LoginInput, AuthPayload, RegistrationInput};
 use db::{ConnectionPool};
 use juniper::{ FieldResult };
 use resolvers::{user,auth};
@@ -28,7 +29,7 @@ graphql_object!(Mutation: Ctx |&self| {
         auth::login(executor, input)
     }
 
-    field register_user(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
-        auth::register_user(executor, input)
+    field register(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
+        auth::register(executor, input)
     }
 });

@@ -7,17 +7,18 @@ extern crate serde_json;
 extern crate dotenv;
 extern crate juniper_rocket;
 extern crate rocket_contrib;
+extern crate validator;
 
 #[macro_use] extern crate rocket;
 #[macro_use] extern crate juniper;
 #[macro_use] extern crate diesel;
+#[macro_use] extern crate validator_derive;
 
 mod schema;
 mod models;
 mod error;
 mod db;
 mod resolvers;
-mod auth;
 mod web;
 mod graphql;
 

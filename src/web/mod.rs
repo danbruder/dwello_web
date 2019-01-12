@@ -1,16 +1,14 @@
 //
 // web.rs
 //
-
 use rocket::response::content;
 use rocket::State;
 use rocket::Outcome;
 use rocket::http::Status;
 use rocket::request::{self, Request, FromRequest};
-use db::{Db};
+use db::{Db,create_pool};
 use graphql::{Mutation,Query,Ctx,Schema};
-use db;
-use auth;
+use models::user::User;
 
 pub struct ApiKey(pub String);
 
@@ -53,7 +51,7 @@ fn post_graphql_handler(
     schema: State<Schema>,
 ) -> juniper_rocket::GraphQLResponse {
     let connection = db.pool.get().unwrap();
-    let user = auth::user_from_key(connection, key);
+    let user = User::from_key(connection, key);
 
     // Create new context
     let context = Ctx{
@@ -66,7 +64,7 @@ fn post_graphql_handler(
 
 pub fn launch() {
     rocket::ignite()
-        .manage(Db { pool: db::create_pool()})
+        .manage(Db { pool: create_pool()})
         .manage(Schema::new(
                 Query, 
                 Mutation

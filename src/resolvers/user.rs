@@ -5,7 +5,7 @@
 use error::ScoutError;
 use juniper::{FieldResult,FieldError,Executor};
 use diesel::prelude::*;
-use ::models::User;
+use models::user::User;
 use graphql::Ctx;
 
 pub fn all_users(
