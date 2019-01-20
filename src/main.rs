@@ -1,4 +1,4 @@
-#![feature(decl_macro, proc_macro_hygiene)]
+#![feature(decl_macro, proc_macro_hygiene, custom_attribute)]
 #![allow(proc_macro_derive_resolution_fallback)]
 
 extern crate bcrypt;
@@ -15,12 +15,12 @@ extern crate validator;
 #[macro_use] extern crate validator_derive;
 
 mod schema;
-mod models;
 mod error;
 mod db;
-mod resolvers;
 mod web;
 mod graphql;
+mod accounts;
+mod deals;
 
 fn main() {
     web::launch();

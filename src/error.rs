@@ -3,7 +3,7 @@
 //
 use std::fmt::{Display,Formatter,Result};
 use validator::ValidationErrors;
-use models::graphql::ValidationError;
+use accounts::types::ValidationError;
 
 #[derive(Debug)]
 pub enum ScoutError { 

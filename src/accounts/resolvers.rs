@@ -1,5 +1,5 @@
 //
-// resolvers/auth.rs
+// auth/resolvers.rs
 //
 use validator::Validate;
 use juniper::{FieldResult,FieldError,Executor};
@@ -7,9 +7,9 @@ use diesel::prelude::*;
 use diesel::result::Error::DatabaseError;
 use diesel::result::DatabaseErrorKind;
 use graphql::Ctx;
-use models::graphql::{RegistrationInput,AuthPayload,LoginInput,ValidationError};
-use models::user::{User,NewUser};
-use models::session::Session;
+use super::types::*;
+
+use error::ScoutError;
 
 
 pub fn login(
@@ -106,3 +106,23 @@ pub fn register(
     })
 }
 
+//
+// resolvers/user.rs
+//
+
+pub fn all_users(
+    executor: &Executor<Ctx>,
+    ) -> FieldResult<Vec<User>> {
+    use schema::users::dsl::*;
+    let current_user = executor.context().user.clone();
+    let connection = executor.context().pool.get().unwrap();
+
+    if current_user.is_none() { 
+        return Err(FieldError::from(ScoutError::AccessDenied));
+    }
+
+    users
+        .limit(10)
+        .load::<User>(&connection)
+        .map_err(|e| FieldError::from(e))
+}

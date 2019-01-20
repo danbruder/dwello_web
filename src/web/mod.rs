@@ -10,7 +10,7 @@ use rocket::http::Status;
 use rocket::request::{self, Request, FromRequest};
 use db::{Db,create_pool};
 use graphql::{Mutation,Query,Ctx,Schema};
-use models::user::User;
+use accounts::types::User;
 
 
 pub struct ApiKey(pub String);
