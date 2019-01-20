@@ -7,7 +7,8 @@ use diesel::prelude::*;
 use web::ApiKey;
 use super::session::Session;
 
-#[derive(GraphQLObject, Clone, Queryable)]
+#[derive(Identifiable,GraphQLObject, Clone, Queryable)]
+#[table_name = "users"]
 pub struct User {
     pub id: i32,
     pub name: String,

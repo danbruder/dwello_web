@@ -3,5 +3,7 @@
 //
 pub mod user;
 pub mod session;
-pub mod graphql;
+pub mod auth;
+pub mod deal;
+pub mod house;
 
