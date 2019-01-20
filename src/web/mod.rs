@@ -1,6 +1,8 @@
 //
 // web.rs
 //
+pub mod cors;
+
 use rocket::response::content;
 use rocket::State;
 use rocket::Outcome;
@@ -9,6 +11,7 @@ use rocket::request::{self, Request, FromRequest};
 use db::{Db,create_pool};
 use graphql::{Mutation,Query,Ctx,Schema};
 use models::user::User;
+
 
 pub struct ApiKey(pub String);
 
@@ -38,9 +41,14 @@ impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
 }
 
 
-#[get("/")]
+#[get("/graphql/explorer")]
 fn graphiql() -> content::Html<String> {
     juniper_rocket::graphiql_source("/graphql")
+}
+
+#[options("/graphql")]
+fn post_graphql_cors_handler() -> content::Plain<String> { 
+    content::Plain("".to_string())
 }
 
 #[post("/graphql", data = "<request>")]
@@ -71,8 +79,8 @@ pub fn launch() {
         ))
         .mount(
             "/",
-            routes![graphiql, post_graphql_handler],
+            routes![graphiql, post_graphql_handler, post_graphql_cors_handler],
         )
+        .attach(cors::CORS())
         .launch();
 }
-
