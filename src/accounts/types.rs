@@ -15,7 +15,7 @@ use juniper::{FieldError,FieldResult};
 
 #[derive(GraphQLInputObject, Clone, Validate)]
 pub struct RegistrationInput {
-    #[validate(length(min = "1", max = "256"))]
+    #[validate(length(min = "1", max = "256", message="Cannot be blank"))]
     pub name: String,
     #[validate(email(message="Email %s is not valid"))]
     pub email: String,

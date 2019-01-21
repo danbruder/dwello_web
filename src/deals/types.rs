@@ -3,7 +3,7 @@
 //
 use schema::{deals,houses};
 use diesel::prelude::*;
-use accounts::types::User;
+//use accounts::types::User;
 use diesel::deserialize::{self, FromSql};
 use diesel::sql_types::Varchar;
 use diesel::pg::Pg;
