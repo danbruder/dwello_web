@@ -1,9 +1,9 @@
 table! {
     deals (id) {
         id -> Int4,
-        bid -> Nullable<Int4>,
-        sid -> Nullable<Int4>,
-        hid -> Nullable<Int4>,
+        buyer_id -> Nullable<Int4>,
+        seller_id -> Nullable<Int4>,
+        house_id -> Nullable<Int4>,
         access_code -> Varchar,
         status -> Varchar,
         created -> Timestamp,
@@ -42,7 +42,7 @@ table! {
     }
 }
 
-joinable!(deals -> houses (hid));
+joinable!(deals -> houses (house_id));
 joinable!(sessions -> users (uid));
 
 allow_tables_to_appear_in_same_query!(

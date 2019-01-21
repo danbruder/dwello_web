@@ -14,7 +14,7 @@ impl Fairing for CORS {
     }
 
     fn on_response(&self, request: &Request, response: &mut Response) {
-        response.set_header(Header::new("Access-Control-Allow-Origin", "https://scout-web.netlify.com"));
+        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
         response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, OPTIONS"));
         response.set_header(Header::new("Access-Control-Allow-Headers", "Content-Type, x-api-key"));
         response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));

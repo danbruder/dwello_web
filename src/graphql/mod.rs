@@ -3,6 +3,7 @@
 //
 
 use accounts::types::{User,LoginInput, AuthPayload, RegistrationInput};
+use deals::types::{HouseInput};
 use deals::types::{Deal};
 use db::{ConnectionPool};
 use juniper::{FieldResult};
@@ -33,7 +34,7 @@ graphql_object!(Mutation: Ctx |&self| {
         accounts::resolvers::register(executor, input)
     }
 
-    field create_deal(&executor) -> FieldResult<Deal> {
-        deals::resolvers::create_deal(executor)
+    field create_deal(&executor, input: HouseInput) -> FieldResult<Deal> {
+        deals::resolvers::create_deal(executor, input)
     }
 });
