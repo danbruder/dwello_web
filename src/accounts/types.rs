@@ -9,15 +9,18 @@ use schema::{users,sessions};
 use db::{PooledConnection};
 use diesel::prelude::*;
 use web::ApiKey;
-use juniper::{FieldError,FieldResult};
-
+use diesel::pg::Pg;
+use diesel::deserialize::{self, FromSql};
+use diesel::sql_types::Text;
+use diesel::serialize::{self, IsNull, Output, ToSql};
+use std::io::Write;
 
 
 #[derive(GraphQLInputObject, Clone, Validate)]
 pub struct RegistrationInput {
     #[validate(length(min = "1", max = "256", message="Cannot be blank"))]
     pub name: String,
-    #[validate(email(message="Email %s is not valid"))]
+    #[validate(email(message="Email is not valid"))]
     pub email: String,
     #[validate(length(min = "6", max = "30", message="Password length must be between 6 and 30"))]
     pub password: String,
@@ -95,6 +98,7 @@ pub struct User {
     pub email: String,
     #[graphql(skip)]
     pub password_hash: String,
+    pub roles: Vec<Role>
 }
 
 #[derive(Insertable)]
@@ -103,6 +107,38 @@ pub struct NewUser {
     pub name: String,
     pub email: String,
     pub password_hash: String,
+    pub roles: Vec<Role>
+}
+
+/* 
+ * Deal status
+ */
+#[derive(Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+#[sql_type = "Text"]
+pub enum Role {
+    Anonymous,
+    Admin
+}
+
+impl ToSql<Text, Pg> for Role {
+    fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+        match *self { 
+            Role::Anonymous => out.write_all(b"anonymous")?,
+            Role::Admin => out.write_all(b"admin")?
+        }
+
+        Ok(IsNull::No)
+    }
+}
+
+impl FromSql<Text, Pg> for Role {
+    fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+        match not_none!(bytes) {
+            b"anonymous" => Ok(Role::Anonymous),
+            b"admin" => Ok(Role::Admin),
+            _ => Err("Unrecognized enum variant".into()),
+        }
+    }
 }
 
 

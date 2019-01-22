@@ -39,6 +39,7 @@ table! {
         name -> Varchar,
         email -> Varchar,
         password_hash -> Varchar,
+        roles -> Array<Text>,
     }
 }
 
