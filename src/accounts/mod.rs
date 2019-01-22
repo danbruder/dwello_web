@@ -81,7 +81,7 @@ pub fn register(
             name: input.name,
             email: input.email,
             password_hash: bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?,
-            roles: vec![Role::Admin]
+            roles: vec![Role::Anonymous]
         }).get_result::<User>(&conn) {
         Ok(user) => user,
         Err(err) => match err {

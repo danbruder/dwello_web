@@ -63,8 +63,8 @@ fn post_graphql_handler(
 
     // Create new context
     let context = Ctx{
-        pool: db.pool.clone(),
         user: user,
+        pool: db.pool.clone(),
     };
 
     request.execute(&schema, &context)

@@ -7,19 +7,27 @@ use deals::types::{HouseInput};
 use deals::types::{Deal};
 use db::{ConnectionPool};
 use juniper::{FieldResult,FieldError};
-use super::{accounts,deals};
+use super::{accounts,deals,viewer};
+use viewer::types::Viewer;
 
 pub type Schema = juniper::RootNode<'static, Query, Mutation>;
 
 pub struct Ctx {
     pub user: Option<User>,
-    pub pool: ConnectionPool
+    pub pool: ConnectionPool,
 }
 
 pub struct Query;
 pub struct Mutation;
 
 graphql_object!(Query: Ctx |&self| {
+    field viewer(&executor) -> FieldResult<Viewer> {
+        let conn = executor.context().pool.get().unwrap();
+        let current_user = executor.context().user.clone();
+        viewer::current(conn, current_user)
+            .map_err(|e| FieldError::from(e))
+    }
+
     field all_users(&executor) -> FieldResult<Vec<User>> {
         let conn = executor.context().pool.get().unwrap();
         let current_user = executor.context().user.clone();
