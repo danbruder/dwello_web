@@ -6,7 +6,7 @@ use accounts::types::{User,LoginInput, AuthPayload, RegistrationInput};
 use deals::types::{HouseInput};
 use deals::types::{Deal};
 use db::{ConnectionPool};
-use juniper::{FieldResult};
+use juniper::{FieldResult,FieldError};
 use super::{accounts,deals};
 
 pub type Schema = juniper::RootNode<'static, Query, Mutation>;
@@ -21,20 +21,30 @@ pub struct Mutation;
 
 graphql_object!(Query: Ctx |&self| {
     field all_users(&executor) -> FieldResult<Vec<User>> {
-        accounts::resolvers::all_users(executor)
+        let conn = executor.context().pool.get().unwrap();
+        let current_user = executor.context().user.clone();
+        accounts::all_users(conn, current_user)
+            .map_err(|e| FieldError::from(e))
     }
 });
 
 graphql_object!(Mutation: Ctx |&self| {
     field login(&executor, input: LoginInput) -> FieldResult<AuthPayload> {
-        accounts::resolvers::login(executor, input)
+        let conn = executor.context().pool.get().unwrap();
+        accounts::login(conn, input)
+            .map_err(|e| FieldError::from(e))
     }
 
     field register(&executor, input: RegistrationInput) -> FieldResult<AuthPayload> {
-        accounts::resolvers::register(executor, input)
+        let conn = executor.context().pool.get().unwrap();
+        accounts::register(conn, input)
+            .map_err(|e| FieldError::from(e))
     }
 
     field create_deal(&executor, input: HouseInput) -> FieldResult<Deal> {
-        deals::resolvers::create_deal(executor, input)
+        let current_user = executor.context().user.clone();
+        let conn = executor.context().pool.get().unwrap();
+        deals::create_deal(conn, current_user, input)
+            .map_err(|e| FieldError::from(e))
     }
 });
