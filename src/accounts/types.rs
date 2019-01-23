@@ -16,52 +16,52 @@ use std::io::Write;
 use validation::ValidationError;
 
 
-#[derive(GraphQLInputObject, Clone, Validate)]
-pub struct RegistrationInput {
-    #[validate(length(min = "1", max = "256", message="Cannot be blank"))]
-    pub name: String,
-    #[validate(email(message="Email is not valid"))]
-    pub email: String,
-    #[validate(length(min = "6", max = "30", message="Password length must be between 6 and 30"))]
-    pub password: String,
-}
+//#[derive(GraphQLInputObject, Clone, Validate)]
+//pub struct RegistrationInput {
+    //#[validate(length(min = "1", max = "256", message="Cannot be blank"))]
+    //pub name: String,
+    //#[validate(email(message="Email is not valid"))]
+    //pub email: String,
+    //#[validate(length(min = "6", max = "30", message="Password length must be between 6 and 30"))]
+    //pub password: String,
+//}
 
-#[derive(GraphQLObject, Clone)]
-pub struct AuthPayload {
-    pub token: Option<String>,
-    pub user: Option<User>,
-    pub valid: bool,
-    pub validation_errors: Option<Vec<ValidationError>>
-}
+//#[derive(GraphQLObject, Clone)]
+//pub struct AuthPayload {
+    //pub token: Option<String>,
+    //pub user: Option<User>,
+    //pub valid: bool,
+    //pub validation_errors: Option<Vec<ValidationError>>
+//}
 
-impl AuthPayload { 
-    pub fn from_validation_errors(e: ValidationErrors) -> AuthPayload { 
-        let errors = error::from_validation_errors(e);
-        AuthPayload{
-            user: None,
-            token: None,
-            valid: false,
-            validation_errors: Some(errors)
-        }
-    }
-    pub fn from_simple_error(key: &'static str, value: &'static str) -> AuthPayload { 
-        AuthPayload{
-            user: None,
-            token: None,
-            valid: false,
-            validation_errors: Some(vec![ValidationError{
-                field: key.to_string(),
-                message: value.to_string()
-            }])
-        }
-    }
-}
+//impl AuthPayload { 
+    //pub fn from_validation_errors(e: ValidationErrors) -> AuthPayload { 
+        //let errors = error::from_validation_errors(e);
+        //AuthPayload{
+            //user: None,
+            //token: None,
+            //valid: false,
+            //validation_errors: Some(errors)
+        //}
+    //}
+    //pub fn from_simple_error(key: &'static str, value: &'static str) -> AuthPayload { 
+        //AuthPayload{
+            //user: None,
+            //token: None,
+            //valid: false,
+            //validation_errors: Some(vec![ValidationError{
+                //field: key.to_string(),
+                //message: value.to_string()
+            //}])
+        //}
+    //}
+//}
 
-#[derive(GraphQLInputObject, Clone)]
-pub struct LoginInput {
-    pub email: String,
-    pub password: String,
-}
+//#[derive(GraphQLInputObject, Clone)]
+//pub struct LoginInput {
+    //pub email: String,
+    //pub password: String,
+//}
 
 #[derive(GraphQLObject, Clone, Queryable)]
 pub struct Session {

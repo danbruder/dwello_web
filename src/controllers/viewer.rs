@@ -1,26 +1,24 @@
 use rocket_contrib::json::Json;
-use accounts::types::User;
 use rocket::State;
-use deals::types::Deal;
 use db::{Db};
-use web::ApiKey;
+use accounts::types::CurrentUser;
 
 #[derive(Serialize)]
 pub struct ViewUserWithDealsResponse { 
-    pub user: Option<User>,
-    pub deals: Vec<Deal>
+    //pub user: Option<User>,
+    pub count: i32
+    //pub deals: Vec<Deal>
 }
 
 #[get("/views/user-with-deals")]
 pub fn user_with_deals(
-    key: ApiKey,
+    user: CurrentUser,
     db: State<Db>,
     ) -> Json<ViewUserWithDealsResponse> { 
-    let connection = db.pool.get().unwrap();
-    let user = User::from_key(connection, key);
+    //let connection = db.pool.get().unwrap();
+    //let user = User::from_key(connection, key);
 
     Json(ViewUserWithDealsResponse{
-        user: user,
-        deals: vec![]
+        count: 0
     })
 }

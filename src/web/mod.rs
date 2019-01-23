@@ -9,9 +9,9 @@ use rocket::Outcome;
 use rocket::http::Status;
 use rocket::request::{self, Request, FromRequest};
 use db::{Db,create_pool,PooledConnection};
-use graphql::{Mutation,Query,Ctx,Schema};
+//use graphql::{Mutation,Query,Ctx,Schema};
 use accounts::types::{CurrentUser,User};
-use controllers::{viewer,deal};
+use controllers::{viewer};
 use accounts::types::CurrentUser::*;
 use error::ScoutError;
 use error::ApiKeyError;
@@ -96,18 +96,14 @@ fn user_from_key(conn: PooledConnection, key: ApiKey) -> CurrentUser {
 pub fn launch() {
     rocket::ignite()
         .manage(Db { pool: create_pool()})
-        .manage(Schema::new(
-                Query, 
-                Mutation
-        ))
         .mount(
             "/",
             routes![
-                graphiql, 
-                post_graphql_handler, 
-                post_graphql_cors_handler,
+                //graphiql, 
+                //post_graphql_handler, 
+                //post_graphql_cors_handler,
                 viewer::user_with_deals,
-                deal::create_deal,
+                //deal::create_deal,
             ],
         )
         .attach(cors::CORS())

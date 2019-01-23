@@ -3,7 +3,7 @@
 //
 use std::fmt::{Display,Formatter,Result};
 use validator::ValidationErrors;
-use accounts::types::ValidationError;
+use validation::ValidationError;
 use std::error::Error;
 use self::ScoutError::*;
 
