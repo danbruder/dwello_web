@@ -1,28 +1,31 @@
 use rocket_contrib::json::Json;
-use accounts::types::{CurrentUser, CurrentUser::*, User};
+use accounts::types::{CurrentUser, CurrentUser::*  };
 use rocket::http::Status;
 use rocket::State;
 use deals::types::*;
 use db::{Db};
-use web::ApiKey;
 use diesel::prelude::*;
-use db::PooledConnection;
 use error::ScoutError;
+use validator::Validate;
+use validation::ValidationError;
+use deals::types::{House,Deal};
 
-
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct CreateDealAndHouseData {
+    #[validate(length(min = "1", max = "500", message="Cannot be blank"))]
     pub address: String,
+    #[validate(length(min = "1", max = "500", message="Cannot be blank"))]
     pub lat: String,
+    #[validate(length(min = "1", max = "500", message="Cannot be blank"))]
     pub lon: String,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize,Default)]
 pub struct CreateDealAndHousePayload {
-    pub house: House,
-    pub deal: Deal,
+    pub house: Option<House>,
+    pub deal: Option<Deal>,
     pub valid: bool,
-    pub validation_errors: Vec<ValidationError>
+    pub validation_errors: Option<Vec<ValidationError>>
 }
 
 #[post("/deals", format = "application/json", data = "<input>")]
@@ -30,7 +33,7 @@ pub fn create_deal(
     user: CurrentUser,
     db: State<Db>,
     input: Json<CreateDealAndHouseData>
-    ) -> Json<CreateDealAndHousePayload> { 
+    ) -> Result<Json<CreateDealAndHousePayload>, ScoutError> { 
     let conn = db.pool.get().unwrap();
 
     use schema::deals::dsl::*;
@@ -40,10 +43,18 @@ pub fn create_deal(
     // Currently only admins can create deals
     let user = match user { 
         Admin(user) => user,
-        _ => return Err(status::Custom(Status::AccessDenied, "Hi!"))
+        _ => return Err(ScoutError::AccessDenied)
     };
 
     let formatted_address = input.address.trim().to_uppercase();
+
+    match input.validate() {
+        Err(e) => return Ok(Json(CreateDealAndHousePayload{
+            ..Default::default(),
+            validation_errors: Some(error::from_validation_errors(e))
+        })),
+        Ok(_) => ()
+    }
 
     // Look for a house with address
     let house = match houses
@@ -54,8 +65,8 @@ pub fn create_deal(
                 diesel::insert_into(houses) 
                     .values(&NewHouse{
                         address: formatted_address,
-                        lat: input.lat,
-                        lon: input.lon,
+                        lat: input.lat.clone(),
+                        lon: input.lon.clone(),
                         created: chrono::Utc::now().naive_utc(),
                         updated: chrono::Utc::now().naive_utc(),
                     }).get_result::<House>(&conn)?
@@ -85,8 +96,10 @@ pub fn create_deal(
             Err(e) => return Err(ScoutError::from(e))
         };
 
-    Json(CreateDealAndHousePayload{
-        house: house,
-        deal: deal
-    })
+    Ok(Json(CreateDealAndHousePayload{
+        house: Some(house),
+        deal: Some(deal),
+        valid: true,
+        validation_errors: None
+    }))
 }

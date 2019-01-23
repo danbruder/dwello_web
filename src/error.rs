@@ -85,4 +85,3 @@ impl Display for ApiKeyError {
         write!(f, "{}", self.description())
     }
 }
-

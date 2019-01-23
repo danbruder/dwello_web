@@ -2,7 +2,6 @@
 // models/graphql.rs
 //
 
-// A trait that the Validate derive will impl
 use validator::{Validate,ValidationErrors};
 use error;
 use schema::{users,sessions};
@@ -14,6 +13,7 @@ use diesel::deserialize::{self, FromSql};
 use diesel::sql_types::Text;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use std::io::Write;
+use validation::ValidationError;
 
 
 #[derive(GraphQLInputObject, Clone, Validate)]
@@ -61,12 +61,6 @@ impl AuthPayload {
 pub struct LoginInput {
     pub email: String,
     pub password: String,
-}
-
-#[derive(GraphQLObject, Clone)]
-pub struct ValidationError { 
-    pub field: String,
-    pub message: String
 }
 
 #[derive(GraphQLObject, Clone, Queryable)]

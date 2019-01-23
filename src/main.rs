@@ -23,6 +23,7 @@ mod graphql;
 mod accounts;
 mod deals;
 mod controllers;
+mod validation;
 
 fn main() {
     web::launch();
