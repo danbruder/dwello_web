@@ -68,7 +68,7 @@ pub struct NewDeal {
     pub updated: chrono::NaiveDateTime,
 }
 
-#[derive(Identifiable, GraphQLObject, Clone, Queryable)]
+#[derive(Serialize, Identifiable, GraphQLObject, Clone, Queryable)]
 #[table_name = "houses"]
 pub struct House {
     pub id: i32,

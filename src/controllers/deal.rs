@@ -1,9 +1,14 @@
 use rocket_contrib::json::Json;
-use accounts::types::User;
+use accounts::types::{CurrentUser, CurrentUser::*, User};
+use rocket::http::Status;
 use rocket::State;
-use deals::types::Deal;
+use deals::types::*;
 use db::{Db};
 use web::ApiKey;
+use diesel::prelude::*;
+use db::PooledConnection;
+use error::ScoutError;
+
 
 #[derive(Deserialize)]
 pub struct CreateDealAndHouseData {
@@ -15,28 +20,29 @@ pub struct CreateDealAndHouseData {
 #[derive(Serialize)]
 pub struct CreateDealAndHousePayload {
     pub house: House,
-    pub deal: Deal
-        // Need to handle validations
+    pub deal: Deal,
+    pub valid: bool,
+    pub validation_errors: Vec<ValidationError>
 }
 
-#[post("/deals")]
+#[post("/deals", format = "application/json", data = "<input>")]
 pub fn create_deal(
-    key: ApiKey,
+    user: CurrentUser,
     db: State<Db>,
     input: Json<CreateDealAndHouseData>
-    ) -> Json<ViewUserWithDealsResponse> { 
-    let connection = db.pool.get().unwrap();
-    let current_user = User::from_key(connection, key);
+    ) -> Json<CreateDealAndHousePayload> { 
+    let conn = db.pool.get().unwrap();
 
     use schema::deals::dsl::*;
     use schema::houses::dsl::*;
     use schema::houses::dsl::id;
 
-    if current_user.is_none() { 
-        return Err(ScoutError::AccessDenied);
-    }
+    // Currently only admins can create deals
+    let user = match user { 
+        Admin(user) => user,
+        _ => return Err(status::Custom(Status::AccessDenied, "Hi!"))
+    };
 
-    let user = current_user.unwrap();
     let formatted_address = input.address.trim().to_uppercase();
 
     // Look for a house with address
@@ -78,8 +84,6 @@ pub fn create_deal(
             },
             Err(e) => return Err(ScoutError::from(e))
         };
-
-    Ok(deal)
 
     Json(CreateDealAndHousePayload{
         house: house,

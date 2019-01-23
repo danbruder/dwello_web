@@ -102,6 +102,21 @@ pub struct User {
     pub roles: Vec<Role>
 }
 
+pub enum CurrentUser {
+    Anonymous,
+    Authenticated(User),
+    Admin(User),
+}
+
+impl CurrentUser { 
+    pub fn is_admin(&self) -> bool {
+        match self { 
+            CurrentUser::Admin(_) => true,
+            _ => false
+        }
+    }
+}
+
 #[derive(Insertable)]
 #[table_name = "users"]
 pub struct NewUser {
@@ -161,5 +176,15 @@ impl User {
         }
 
         user
+    }
+
+    /// Check if the user is an admin
+    pub fn is_admin(&self) -> bool {
+        self.roles
+            .iter()
+            .any(|r| match r { 
+            Role::Admin => true,
+            _ => false
+        })
     }
 }
