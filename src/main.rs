@@ -13,6 +13,7 @@ extern crate validator;
 #[macro_use] extern crate juniper;
 #[macro_use] extern crate diesel;
 #[macro_use] extern crate validator_derive;
+#[macro_use] extern crate serde_derive;
 
 mod schema;
 mod error;
@@ -21,6 +22,7 @@ mod web;
 mod graphql;
 mod accounts;
 mod deals;
+mod controllers;
 
 fn main() {
     web::launch();

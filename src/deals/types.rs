@@ -14,7 +14,7 @@ use std::io::Write;
 /* 
  * Deal status
  */
-#[derive(Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+#[derive(Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
 #[sql_type = "Varchar"]
 pub enum DealStatus {
     Initialized
@@ -40,7 +40,7 @@ impl FromSql<Varchar, Pg> for DealStatus {
 }
 
 
-#[derive(Identifiable, GraphQLObject, Associations, Clone, Queryable)]
+#[derive(Serialize, Identifiable, GraphQLObject, Associations, Clone, Queryable)]
 //#[belongs_to(User, foreign_key="bid")]
 //#[belongs_to(User, foreign_key="sid")]
 //#[belongs_to(House, foreign_key="hid")]

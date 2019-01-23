@@ -11,6 +11,7 @@ use rocket::request::{self, Request, FromRequest};
 use db::{Db,create_pool};
 use graphql::{Mutation,Query,Ctx,Schema};
 use accounts::types::User;
+use controllers::viewer;
 
 
 pub struct ApiKey(pub String);
@@ -79,7 +80,12 @@ pub fn launch() {
         ))
         .mount(
             "/",
-            routes![graphiql, post_graphql_handler, post_graphql_cors_handler],
+            routes![
+                graphiql, 
+                post_graphql_handler, 
+                post_graphql_cors_handler,
+                viewer::user_with_deals
+            ],
         )
         .attach(cors::CORS())
         .launch();
