@@ -3,13 +3,11 @@
 //
 pub mod cors;
 
-use rocket::response::content;
 use rocket::State;
 use rocket::Outcome;
 use rocket::http::Status;
 use rocket::request::{self, Request, FromRequest};
-use db::{Db,create_pool,PooledConnection};
-//use graphql::{Mutation,Query,Ctx,Schema};
+use db::{Pool,create_pool,PooledConnection};
 use accounts::types::{CurrentUser,User};
 use controllers::{viewer};
 use accounts::types::CurrentUser::*;
@@ -20,9 +18,11 @@ impl<'a, 'r> FromRequest<'a, 'r> for CurrentUser {
 
     fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
         let keys: Vec<_> = request.headers().get("x-api-key").collect();
-        let db = request.guard::<State<Db>>().unwrap();
+        let pool_guard = request.guard::<State<Pool>>();
 
-        let conn = db.pool.get().unwrap();
+        let pool = pool_guard.success_or_else(|| return Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError)));
+
+        let conn = pool.0.get().unwrap();
 
         match keys.len() {
             0 => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError)),
@@ -77,7 +77,7 @@ fn user_from_key(conn: PooledConnection, key: String) -> CurrentUser {
 
 pub fn launch() {
     rocket::ignite()
-        .manage(Db { pool: create_pool()})
+        .manage(Pool(create_pool()))
         .mount(
             "/",
             routes![
