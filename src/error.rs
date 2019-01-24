@@ -11,7 +11,7 @@ use self::ScoutError::*;
 pub enum ScoutError { 
     BcryptError(bcrypt::BcryptError),
     DieselError(diesel::result::Error),
-    ApiKeyError(ApiKeyError),
+    ApiKeyError,
     // Access
     AccessDenied,
     // Deals
@@ -24,7 +24,7 @@ impl Display for ScoutError {
         match self { 
             AccessDenied => write!(f, "Access denied"),
             DealExists => write!(f, "Deal exists"),
-            ApiKeyError(ref e) => write!(f, "{}", e.description()),
+            ApiKeyError => write!(f, "Authentication error"),
             BcryptError(ref e) => write!(f, "{}", e.description()),
             DieselError(ref e) => write!(f, "{}", e.description()),
         }
@@ -58,30 +58,3 @@ impl From<diesel::result::Error> for ScoutError {
     }
 }
 
-impl From<ApiKeyError> for ScoutError { 
-    fn from(error: ApiKeyError) -> Self {
-        ApiKeyError(error)
-    }
-}
-
-#[derive(Debug)]
-pub enum ApiKeyError {
-    BadCount,
-    Missing,
-    Invalid,
-}
-
-impl Error for ApiKeyError { 
-    fn description(&self) -> &str { 
-        match self { 
-             ApiKeyError::Missing => "API key missing",
-             _ => "API key invalid",
-        }
-    }
-}
-
-impl Display for ApiKeyError { 
-    fn fmt(&self, f: &mut Formatter) -> Result {
-        write!(f, "{}", self.description())
-    }
-}

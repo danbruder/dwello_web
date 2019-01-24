@@ -7,7 +7,6 @@ use error;
 use schema::{users,sessions};
 use db::{PooledConnection};
 use diesel::prelude::*;
-use web::ApiKey;
 use diesel::pg::Pg;
 use diesel::deserialize::{self, FromSql};
 use diesel::sql_types::Text;
@@ -96,6 +95,7 @@ pub struct User {
     pub roles: Vec<Role>
 }
 
+#[derive(Serialize)] 
 pub enum CurrentUser {
     Anonymous,
     Authenticated(User),
@@ -153,7 +153,7 @@ impl FromSql<Text, Pg> for Role {
 
 
 impl User { 
-    pub fn from_key(conn: PooledConnection, key: ApiKey) -> Option<User> {
+    pub fn from_key(conn: PooledConnection, key: String) -> Option<User> {
         use schema::users::dsl::*;
         use schema::users::dsl::id;
         use schema::sessions::dsl::*;
@@ -161,7 +161,7 @@ impl User {
         // Load session and user
         let mut user = None;
         let session = sessions 
-            .filter(token.eq(key.0))
+            .filter(token.eq(key))
             .first::<Session>(&conn).ok();
         if let Some(s) = session { 
             user = users 

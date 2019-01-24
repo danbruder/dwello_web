@@ -14,28 +14,6 @@ use accounts::types::{CurrentUser,User};
 use controllers::{viewer};
 use accounts::types::CurrentUser::*;
 use error::ScoutError;
-use error::ApiKeyError;
-
-
-pub struct ApiKey(pub String);
-
-fn is_valid(_key: &str) -> bool {
-    true
-}
-
-impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
-    type Error = ApiKeyError;
-
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
-        let keys: Vec<_> = request.headers().get("x-api-key").collect();
-        match keys.len() {
-            0 => Outcome::Failure((Status::BadRequest, ApiKeyError::Missing)),
-            1 if is_valid(keys[0]) => Outcome::Success(ApiKey(keys[0].to_string())),
-            1 => Outcome::Failure((Status::BadRequest, ApiKeyError::Invalid)),
-            _ => Outcome::Failure((Status::BadRequest, ApiKeyError::BadCount)),
-        }
-    }
-}
 
 impl<'a, 'r> FromRequest<'a, 'r> for CurrentUser {
     type Error = ScoutError;
@@ -47,15 +25,19 @@ impl<'a, 'r> FromRequest<'a, 'r> for CurrentUser {
         let conn = db.pool.get().unwrap();
 
         match keys.len() {
-            0 => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError(ApiKeyError::Missing))),
-            1 if is_valid(keys[0]) => Outcome::Success(user_from_key(conn, ApiKey(keys[0].to_string()))),
-            1 => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError(ApiKeyError::Invalid))),
-            _ => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError(ApiKeyError::BadCount))),
+            0 => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError)),
+            1 if is_valid(keys[0]) => Outcome::Success(user_from_key(conn, keys[0].to_string())),
+            1 => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError)),
+            _ => Outcome::Failure((Status::BadRequest, ScoutError::ApiKeyError)),
         }
     }
 }
 
-fn user_from_key(conn: PooledConnection, key: ApiKey) -> CurrentUser {
+fn is_valid(key: &str) -> bool{
+    true
+}
+
+fn user_from_key(conn: PooledConnection, key: String) -> CurrentUser {
     User::from_key(conn, key)
         .map_or(Anonymous, |u| match u.is_admin() {
             true => Admin(u),
