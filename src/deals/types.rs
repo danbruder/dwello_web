@@ -40,7 +40,7 @@ impl FromSql<Varchar, Pg> for DealStatus {
 }
 
 
-#[derive(Identifiable, GraphQLObject, Associations, Clone, Queryable)]
+#[derive(Identifiable, GraphQLObject, Clone, Queryable)]
 //#[belongs_to(User, foreign_key="bid")]
 //#[belongs_to(User, foreign_key="sid")]
 //#[belongs_to(House, foreign_key="hid")]

@@ -39,22 +39,8 @@ pub struct DealFilter {
     limit: i32
 }
 
-graphql_object!(Viewer: Ctx |&self| {
-    field deals(&executor, filter: DealFilter) -> &DealConnection { 
-        // Get diesel query and join the deals
-        let conn = executor.context().pool.get().unwrap();
-        println!("{}", "in deals query".to_string());
-        use schema::deals::dsl::*;
-
-        let deal_results = deals
-            .filter(buyer_id.eq(&self.user.unwrap().id))
-            .load::<Vec<Deal>>(&conn).unwrap_or(vec![]);
-
-        &DealConnection{
-            total_count: 0,
-            edges: vec![]
-        }
-    }
+graphql_object!(Viewer: () |&self| {
+    field deals(&executor, filter: Option<DealFilter>) -> &DealConnection { &self.deals }
 });
 
 graphql_object!(DealConnection: () |&self| {

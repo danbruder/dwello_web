@@ -24,7 +24,8 @@ graphql_object!(Query: Ctx |&self| {
     field viewer(&executor) -> FieldResult<Viewer> {
         let conn = executor.context().pool.get().unwrap();
         let current_user = executor.context().user.clone();
-        viewer::current(conn, current_user)
+        let lookahead = executor.look_ahead();
+        viewer::current(conn, current_user, lookahead)
             .map_err(|e| FieldError::from(e))
     }
 
