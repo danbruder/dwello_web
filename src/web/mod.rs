@@ -5,7 +5,7 @@ pub mod cors;
 
 use accounts::types::CurrentUser::*;
 use accounts::types::{CurrentUser, User};
-use controllers::{accounts, deal, views};
+use controllers::{accounts, deal};
 use db::{create_pool, Pool, PooledConnection};
 use error::Error;
 use rocket::http::Status;
@@ -52,11 +52,12 @@ pub fn launch() {
         .mount(
             "/",
             routes![
-                views::deals_with_houses,
                 accounts::login,
                 accounts::register,
                 deal::create_deal,
                 deal::get_deals,
+                deal::update_deal,
+                deal::deals_with_houses,
             ],
         )
         .attach(cors::CORS())

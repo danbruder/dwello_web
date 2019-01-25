@@ -7,6 +7,30 @@ use error::Error;
 use rocket_contrib::json::Json;
 use validator::Validate;
 
+#[derive(Serialize, Queryable)]
+pub struct DealWithHouse {
+    pub id: i32,
+    pub buyer_id: Option<i32>,
+    pub seller_id: Option<i32>,
+    pub house_id: Option<i32>,
+    pub access_code: String,
+    pub status: DealStatus,
+    pub address: String,
+    pub lat: String,
+    pub lon: String,
+}
+
+/// Create deal and house input data
+#[derive(Deserialize, Validate)]
+pub struct CreateDealAndHouseInput {
+    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
+    pub address: String,
+    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
+    pub lat: String,
+    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
+    pub lon: String,
+}
+
 #[get("/deals")]
 pub fn get_deals(user: CurrentUser, conn: Conn) -> Result<Json<Vec<Deal>>, Error> {
     // Currently only admins can create deals
@@ -22,29 +46,12 @@ pub fn get_deals(user: CurrentUser, conn: Conn) -> Result<Json<Vec<Deal>>, Error
     Ok(Json(d))
 }
 
-/// Create deal and house input data
-#[derive(Deserialize, Validate)]
-pub struct CreateDealAndHouseInput {
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub address: String,
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub lat: String,
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub lon: String,
-}
-
-#[derive(Serialize, Default)]
-pub struct CreateDealAndHousePayload {
-    pub house: Option<House>,
-    pub deal: Option<Deal>,
-}
-
 #[post("/deals", format = "application/json", data = "<input>")]
 pub fn create_deal(
     user: CurrentUser,
     conn: Conn,
     input: Json<CreateDealAndHouseInput>,
-) -> Result<Json<CreateDealAndHousePayload>, Error> {
+) -> Result<Json<DealWithHouse>, Error> {
     use schema::deals::dsl::*;
     use schema::houses::dsl::id;
     use schema::houses::dsl::*;
@@ -55,9 +62,7 @@ pub fn create_deal(
         _ => return Err(Error::AccessDenied),
     };
     let Conn(conn) = conn;
-
     let formatted_address = input.address.trim().to_uppercase();
-
     input.validate().map_err(|e| Error::InputError(e))?;
 
     // Look for a house with address
@@ -100,8 +105,81 @@ pub fn create_deal(
         Err(e) => return Err(Error::from(e)),
     };
 
-    Ok(Json(CreateDealAndHousePayload {
-        house: Some(house),
-        deal: Some(deal),
+    Ok(Json(DealWithHouse {
+        id: deal.id,
+        buyer_id: deal.buyer_id,
+        seller_id: deal.seller_id,
+        house_id: deal.house_id,
+        access_code: deal.access_code,
+        status: deal.status,
+        address: house.address,
+        lat: house.lat,
+        lon: house.lon,
     }))
+}
+
+#[post(
+    "/deals/<deal_id>/update",
+    format = "application/json",
+    data = "<input>"
+)]
+pub fn update_deal(
+    deal_id: i32,
+    user: CurrentUser,
+    conn: Conn,
+    input: Json<UpdateDeal>,
+) -> Result<Json<Deal>, Error> {
+    use schema::deals::dsl::*;
+
+    // Currently only admins can create deals
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+
+    let deal = deals.filter(id.eq(deal_id)).first::<Deal>(&conn)?;
+
+    // If the field is set, use the value
+    // If it is not set, ignore.
+    let deal = diesel::update(&deal)
+        .set((
+            seller_id.eq(input.seller_id),
+            status.eq(input.status.unwrap_or(deal.status)),
+            updated.eq(chrono::Utc::now().naive_utc()),
+        ))
+        .get_result::<Deal>(&conn)?;
+
+    Ok(Json(deal))
+}
+
+#[get("/views/deals-with-houses")]
+pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Result<Json<Vec<DealWithHouse>>, Error> {
+    use schema::deals;
+    use schema::houses;
+
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+
+    let d = deals::table
+        .inner_join(houses::table)
+        .select((
+            deals::id,
+            deals::buyer_id,
+            deals::seller_id,
+            deals::house_id,
+            deals::access_code,
+            deals::status,
+            houses::address,
+            houses::lat,
+            houses::lon,
+        ))
+        .filter(deals::dsl::buyer_id.eq(user.id))
+        .limit(10)
+        .load::<DealWithHouse>(&conn)?;
+
+    Ok(Json(d))
 }
