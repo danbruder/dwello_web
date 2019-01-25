@@ -3,12 +3,15 @@
 //
 pub mod types;
 
-use diesel::prelude::*;
-use self::types::*;
-use accounts::types::User;
-use db::PooledConnection;
-use error::ScoutError;
+//use diesel::prelude::*;
+//use self::types::*;
+//use accounts::types::User;
+//use db::PooledConnection;
+//use error::ScoutError;
 
+//pub fn deals_by_user() -> Vec<Deal> { 
+    //use schema::deals::dsl::*;
+//}
 
 //pub fn create_deal(
     //conn: PooledConnection,

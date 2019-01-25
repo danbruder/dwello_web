@@ -12,7 +12,6 @@ use diesel::deserialize::{self, FromSql};
 use diesel::sql_types::Text;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use std::io::Write;
-use validation::ValidationError;
 
 
 //#[derive(GraphQLInputObject, Clone, Validate)]
@@ -25,13 +24,11 @@ use validation::ValidationError;
     //pub password: String,
 //}
 
-//#[derive(GraphQLObject, Clone)]
-//pub struct AuthPayload {
-    //pub token: Option<String>,
-    //pub user: Option<User>,
-    //pub valid: bool,
-    //pub validation_errors: Option<Vec<ValidationError>>
-//}
+#[derive(Serialize, Clone)]
+pub struct AuthPayload {
+    pub token: Option<String>,
+    pub user: Option<User>,
+}
 
 //impl AuthPayload { 
     //pub fn from_validation_errors(e: ValidationErrors) -> AuthPayload { 
@@ -56,11 +53,11 @@ use validation::ValidationError;
     //}
 //}
 
-//#[derive(GraphQLInputObject, Clone)]
-//pub struct LoginInput {
-    //pub email: String,
-    //pub password: String,
-//}
+#[derive(Deserialize)]
+pub struct LoginInput {
+    pub email: String,
+    pub password: String,
+}
 
 #[derive(GraphQLObject, Clone, Queryable)]
 pub struct Session {

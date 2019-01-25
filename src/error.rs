@@ -1,60 +1,87 @@
 //
 // error.rs
 //
+use rocket::response::status;
+use std::collections::HashMap;
+use serde_json::json;
 use std::fmt::{Display,Formatter,Result};
+use rocket::http::Status;
+use rocket::response::Responder;
+use rocket::response;
 use validator::ValidationErrors;
-use validation::ValidationError;
-use std::error::Error;
-use self::ScoutError::*;
+use self::Error::*;
+use rocket_contrib::json::Json;
+use rocket::request::{self, Request, FromRequest};
 
 #[derive(Debug)]
-pub enum ScoutError { 
+pub enum Error { 
     BcryptError(bcrypt::BcryptError),
     DieselError(diesel::result::Error),
+    InputError(ValidationErrors), 
+    ServiceUnavailable,
     ApiKeyError,
-    // Access
     AccessDenied,
-    // Deals
-    DealExists,
+    PasswordNoMatch,
+    EmailTaken
 }
 
-
-impl Display for ScoutError { 
-    fn fmt(&self, f: &mut Formatter) -> Result{
-        match self { 
-            AccessDenied => write!(f, "Access denied"),
-            DealExists => write!(f, "Deal exists"),
-            ApiKeyError => write!(f, "Authentication error"),
-            BcryptError(ref e) => write!(f, "{}", e.description()),
-            DieselError(ref e) => write!(f, "{}", e.description()),
-        }
-    }
-}
-
-pub fn from_validation_errors(e: ValidationErrors) -> Vec<ValidationError> { 
-    let field_errors = e.field_errors();
-    field_errors.iter().map(|(k, v)| {
-        let messages = v
-            .into_iter()
-            .filter(|f| f.message.is_some())
-            .map(|f| f.clone().message.unwrap().to_string())
-            .collect::<Vec<String>>().join(", ");
-        ValidationError{
-            field: k.to_string(),
-            message: messages
-        }
-    }).collect::<Vec<ValidationError>>()
-}
-
-impl From<bcrypt::BcryptError> for ScoutError { 
+impl From<bcrypt::BcryptError> for Error { 
     fn from(error: bcrypt::BcryptError) -> Self {
         BcryptError(error)
     }
 }
 
-impl From<diesel::result::Error> for ScoutError { 
+impl From<diesel::result::Error> for Error { 
     fn from(error: diesel::result::Error) -> Self {
         DieselError(error)
     }
 }
 
+impl<'r> Responder<'r> for Error {
+    fn respond_to(self, req: &Request) -> response::Result<'r> {
+        let (res_status, payload) = match self { 
+            InputError(validation_errors) =>  {
+                let mut errors = HashMap::new();
+                for (field, ers) in validation_errors.field_errors() {
+                    errors.insert(
+                        field,
+                        ers.into_iter()
+                        .map(|err| err.message.to_owned())
+                        .collect::<Vec<_>>(),
+                        );
+                }
+                (Status::UnprocessableEntity, Json(json!({ 
+                    "errors": errors 
+                })))
+            }, 
+            AccessDenied => (Status::Forbidden, Json(json!({
+                "status": "error",
+                "reason": "Forbidden"
+            }))),
+            ApiKeyError => (Status::UnprocessableEntity, Json(json!({
+                "status": "error",
+                "reason": "Api key error"
+            }))),
+            PasswordNoMatch => {
+                let mut errors = HashMap::new();
+                errors.insert("password", "Password does not match");
+                (Status::UnprocessableEntity, Json(json!({
+                    "errors": errors
+                })))
+            },
+            EmailTaken => {
+                let mut errors = HashMap::new();
+                errors.insert("email", "Email is taken");
+                (Status::UnprocessableEntity, Json(json!({
+                    "errors": errors
+                })))
+            },
+            _ => (Status::ServiceUnavailable, Json(json!({
+                "status": "error",
+                "reason": "Service unavailable"
+            }))),
+        };
+
+        status::Custom(res_status, payload).respond_to(req)
+    }
+}
