@@ -1,126 +1,178 @@
-pub mod types;
+pub mod types {
+    use db::PooledConnection;
+    use diesel::deserialize::{self, FromSql};
+    use diesel::pg::Pg;
+    use diesel::prelude::*;
+    use diesel::serialize::{self, IsNull, Output, ToSql};
+    use diesel::sql_types::Text;
+    use error::Error;
+    use schema::{sessions, users};
+    use std::io::Write;
+    use validator::Validate;
 
-use diesel::prelude::*;
-use self::types::*;
-use db::PooledConnection;
-use error::Error;
-use validator::Validate;
-use diesel::result::Error::DatabaseError;
-use diesel::result::DatabaseErrorKind;
+    impl Session {
+        pub fn new(conn: PooledConnection, user: &User) -> Result<Session, Error> {
+            use schema::sessions::dsl::*;
 
-pub fn login(
-    conn: PooledConnection,
-    input: LoginInput
-) -> Result<AuthPayload, Error> {
-    use schema::users::dsl::*;
+            // Set old sessions as inactive
+            let _ = diesel::update(sessions)
+                .filter(uid.eq(user.id))
+                .set(active.eq(false))
+                .execute(&conn);
 
-    // Load user
-    let user = match users
-        .filter(email.eq(&input.email))
-        .first::<User>(&conn) {
-        Ok(user) => user,
-        Err(_) => {
-            // Make sure it costs something if there is no user to 
-            // prevent timing attacks
-            let _ = bcrypt::verify(&input.email, "hash the email");
-            return Err(Error::EmailTaken)
+            // Create a new session
+            let hash_base = format!(
+                "{}{}{}",
+                "8h9gfds98f9g9f8dgs98gf98d$5$$%",
+                user.id.to_string(),
+                chrono::Utc::now()
+            );
+            let new_session = NewSession {
+                uid: user.id,
+                token: bcrypt::hash(&hash_base, bcrypt::DEFAULT_COST)?,
+                active: true,
+                created: chrono::Utc::now().naive_utc(),
+                updated: chrono::Utc::now().naive_utc(),
+            };
+
+            diesel::insert_into(sessions)
+                .values(&new_session)
+                .get_result(&conn)
+                .map_err(|e| Error::from(e))
         }
-    };
+    }
 
-    // Check password
-    // Handle case where user doesn't exist
-    bcrypt::verify(&input.password, &user.password_hash)
-        .map_err(|_| return Error::PasswordNoMatch)?;
+    #[derive(Deserialize, Clone, Validate)]
+    pub struct RegistrationInput {
+        #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+        pub name: String,
+        #[validate(email(message = "Email is not valid"))]
+        pub email: String,
+        #[validate(length(
+            min = "6",
+            max = "30",
+            message = "Password length must be between 6 and 30"
+        ))]
+        pub password: String,
+    }
 
-    // Create a new session
-    let session = Session::new(conn, &user)?;
+    #[derive(Serialize, Clone)]
+    pub struct AuthPayload {
+        pub token: Option<String>,
+        pub user: Option<User>,
+    }
 
-    // Return the auth payload
-    Ok(AuthPayload{
-        token: Some(session.token),
-        user: Some(user),
-    })
-}
+    #[derive(GraphQLObject, Clone, Queryable)]
+    pub struct Session {
+        pub id: i32,
+        pub uid: i32,
+        #[graphql(skip)]
+        pub token: String,
+        pub active: bool,
+        pub created: chrono::NaiveDateTime,
+        pub updated: chrono::NaiveDateTime,
+    }
 
+    #[derive(Insertable)]
+    #[table_name = "sessions"]
+    pub struct NewSession {
+        pub uid: i32,
+        pub token: String,
+        pub active: bool,
+        pub created: chrono::NaiveDateTime,
+        pub updated: chrono::NaiveDateTime,
+    }
 
-//pub fn register(
-    //conn: PooledConnection,
-    //input: RegistrationInput 
-//) -> Result<AuthPayload, ScoutError> {
-    //use schema::users::dsl::*;
+    #[derive(Serialize, Identifiable, GraphQLObject, Clone, Queryable)]
+    #[table_name = "users"]
+    pub struct User {
+        pub id: i32,
+        pub name: String,
+        pub email: String,
+        #[graphql(skip)]
+        #[serde(skip_serializing)]
+        pub password_hash: String,
+        pub roles: Vec<Role>,
+    }
 
-    //match input.validate() {
-        //Err(e) => {
-            //return Ok(AuthPayload::from_validation_errors(e))
-        //},
-        //Ok(_) => ()
-    //}
+    #[derive(Serialize)]
+    pub enum CurrentUser {
+        Anonymous,
+        Authenticated(User),
+        Admin(User),
+    }
 
-    //// Create user
-    //let user = match diesel::insert_into(users) 
-        //.values(&NewUser{
-            //name: input.name,
-            //email: input.email,
-            //password_hash: bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?,
-            //roles: vec![Role::Admin]
-        //}).get_result::<User>(&conn) {
-        //Ok(user) => user,
-        //Err(err) => match err {
-            //DatabaseError(DatabaseErrorKind::UniqueViolation, _info) => return Ok(AuthPayload::from_simple_error("email", "Email is taken")),
-            //_ => return Err(ScoutError::from(err))
-        //}
-    //};
+    impl CurrentUser {
+        pub fn is_admin(&self) -> bool {
+            match self {
+                CurrentUser::Admin(_) => true,
+                _ => false,
+            }
+        }
+    }
 
-    //let session = Session::new(conn, &user)?;
+    #[derive(Insertable)]
+    #[table_name = "users"]
+    pub struct NewUser {
+        pub name: String,
+        pub email: String,
+        pub password_hash: String,
+        pub roles: Vec<Role>,
+    }
 
-    //Ok(AuthPayload{
-        //token: Some(session.token),
-        //user: Some(user),
-        //valid: true,
-        //validation_errors: None
-    //})
-//}
+    /*
+     * Deal status
+     */
+    #[derive(Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+    #[sql_type = "Text"]
+    pub enum Role {
+        Anonymous,
+        Admin,
+    }
 
-//pub fn all_users(
-    //conn: PooledConnection,
-    //current_user: Option<User>
-    //) -> Result<Vec<User>, ScoutError> {
-    //use schema::users::dsl::*;
+    impl ToSql<Text, Pg> for Role {
+        fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+            match *self {
+                Role::Anonymous => out.write_all(b"anonymous")?,
+                Role::Admin => out.write_all(b"admin")?,
+            }
 
-    //if current_user.is_none() { 
-        //return Err(ScoutError::AccessDenied);
-    //}
+            Ok(IsNull::No)
+        }
+    }
 
-    //users
-        //.limit(10)
-        //.load::<User>(&conn)
-        //.map_err(|e| ScoutError::from(e))
-//}
+    impl FromSql<Text, Pg> for Role {
+        fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+            match not_none!(bytes) {
+                b"anonymous" => Ok(Role::Anonymous),
+                b"admin" => Ok(Role::Admin),
+                _ => Err("Unrecognized enum variant".into()),
+            }
+        }
+    }
 
-impl Session {
-    pub fn new(conn: PooledConnection, user: &User) -> Result<Session, Error> {
-        use schema::sessions::dsl::*;
+    impl User {
+        pub fn from_key(conn: PooledConnection, key: String) -> Option<User> {
+            use schema::sessions::dsl::*;
+            use schema::users::dsl::id;
+            use schema::users::dsl::*;
 
-        // Set old sessions as inactive
-        let _ = diesel::update(sessions)
-            .filter(uid.eq(user.id))
-            .set(active.eq(false))
-            .execute(&conn);
+            // Load session and user
+            let mut user = None;
+            let session = sessions.filter(token.eq(key)).first::<Session>(&conn).ok();
+            if let Some(s) = session {
+                user = users.filter(id.eq(s.uid)).first::<User>(&conn).ok();
+            }
 
-        // Create a new session
-        let hash_base = format!("{}{}{}", "8h9gfds98f9g9f8dgs98gf98d$5$$%", user.id.to_string(), chrono::Utc::now());
-        let new_session = NewSession{
-            uid: user.id,
-            token: bcrypt::hash(&hash_base, bcrypt::DEFAULT_COST)?,
-            active: true,
-            created: chrono::Utc::now().naive_utc(),
-            updated: chrono::Utc::now().naive_utc(),
-        };
+            user
+        }
 
-        diesel::insert_into(sessions)
-            .values(&new_session)
-            .get_result(&conn)
-            .map_err(|e| Error::from(e))
+        /// Check if the user is an admin
+        pub fn is_admin(&self) -> bool {
+            self.roles.iter().any(|r| match r {
+                Role::Admin => true,
+                _ => false,
+            })
+        }
     }
 }
-

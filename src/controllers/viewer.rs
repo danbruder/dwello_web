@@ -7,7 +7,7 @@ use diesel::prelude::*;
 use accounts::types::CurrentUser::*;
 
 #[derive(Serialize)]
-pub struct UserWithDeals { 
+pub struct UserWithDeals {
     pub user: User,
     pub deals: Vec<Deal>
 }
@@ -16,10 +16,10 @@ pub struct UserWithDeals {
 pub fn user_with_deals(
     user: CurrentUser,
     conn: Conn
-    ) -> Result<Json<UserWithDeals>, Error> { 
+    ) -> Result<Json<UserWithDeals>, Error> {
     use schema::deals::dsl::*;
 
-    let user = match user { 
+    let user = match user {
         Admin(user) => user,
         _ => return Err(Error::AccessDenied)
     };
@@ -32,6 +32,6 @@ pub fn user_with_deals(
 
     Ok(Json(UserWithDeals{
         user: user,
-        deals: d  
+        deals: d
     }))
 }

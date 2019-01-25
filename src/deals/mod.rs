@@ -1,74 +1,96 @@
 //
 // deal/mod.rs
 //
-pub mod types;
+pub mod types {
+    //
+    // deal/types.rs
+    //
+    use diesel::pg::Pg;
+    use schema::{deals, houses};
+    //use accounts::types::User;
+    use diesel::deserialize::{self, FromSql};
+    use diesel::serialize::{self, IsNull, Output, ToSql};
+    use diesel::sql_types::Varchar;
+    use std::io::Write;
 
-//use diesel::prelude::*;
-//use self::types::*;
-//use accounts::types::User;
-//use db::PooledConnection;
-//use error::ScoutError;
+    #[derive(Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+    #[sql_type = "Varchar"]
+    pub enum DealStatus {
+        Initialized,
+    }
 
-//pub fn deals_by_user() -> Vec<Deal> { 
-    //use schema::deals::dsl::*;
-//}
+    impl ToSql<Varchar, Pg> for DealStatus {
+        fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
+            match *self {
+                DealStatus::Initialized => out.write_all(b"initialized")?,
+            }
 
-//pub fn create_deal(
-    //conn: PooledConnection,
-    //current_user: Option<User>,
-    //input: HouseInput
-    //) -> Result<Deal, ScoutError> {
-    //use schema::deals::dsl::*;
-    //use schema::houses::dsl::*;
-    //use schema::houses::dsl::id;
+            Ok(IsNull::No)
+        }
+    }
 
-    //if current_user.is_none() { 
-        //return Err(ScoutError::AccessDenied);
-    //}
+    impl FromSql<Varchar, Pg> for DealStatus {
+        fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
+            match not_none!(bytes) {
+                b"initialized" => Ok(DealStatus::Initialized),
+                _ => Err("Unrecognized enum variant".into()),
+            }
+        }
+    }
 
-    //let user = current_user.unwrap();
+    #[derive(Serialize, Identifiable, GraphQLObject, Associations, Clone, Queryable)]
+    //#[belongs_to(User, foreign_key="bid")]
+    //#[belongs_to(User, foreign_key="sid")]
+    //#[belongs_to(House, foreign_key="hid")]
+    #[table_name = "deals"]
+    pub struct Deal {
+        pub id: i32,
+        pub buyer_id: Option<i32>,
+        pub seller_id: Option<i32>,
+        pub house_id: Option<i32>,
+        pub access_code: String,
+        pub status: DealStatus,
+        pub created: chrono::NaiveDateTime,
+        pub updated: chrono::NaiveDateTime,
+    }
 
-    //let formatted_address = input.address.trim().to_uppercase();
+    #[derive(Insertable)]
+    #[table_name = "deals"]
+    pub struct NewDeal {
+        pub buyer_id: Option<i32>,
+        pub seller_id: Option<i32>,
+        pub house_id: Option<i32>,
+        pub access_code: String,
+        pub status: DealStatus,
+        pub created: chrono::NaiveDateTime,
+        pub updated: chrono::NaiveDateTime,
+    }
 
-    //// Look for a house with address
-    //let house = match houses
-        //.filter(address.eq(&formatted_address))
-        //.first::<House>(&conn) {
-            //Ok(house) => house,
-            //Err(diesel::NotFound) => {
-                //diesel::insert_into(houses) 
-                    //.values(&NewHouse{
-                        //address: formatted_address,
-                        //lat: input.lat,
-                        //lon: input.lon,
-                        //created: chrono::Utc::now().naive_utc(),
-                        //updated: chrono::Utc::now().naive_utc(),
-                    //}).get_result::<House>(&conn)?
-            //},
-            //Err(e) => return Err(ScoutError::from(e))
-        //};
+    #[derive(Serialize, Identifiable, GraphQLObject, Clone, Queryable)]
+    #[table_name = "houses"]
+    pub struct House {
+        pub id: i32,
+        pub address: String,
+        pub lat: String,
+        pub lon: String,
+        pub created: chrono::NaiveDateTime,
+        pub updated: chrono::NaiveDateTime,
+    }
 
-    //// Create a deal and link it to the house and buyer
-    //// Make sure one doesn't exist already
-    //let deal = match deals
-        //.filter(house_id.eq(&house.id))
-        //.filter(buyer_id.eq(&user.id))
-        //.first::<Deal>(&conn) {
-            //Ok(_) => return Err(ScoutError::DealExists),
-            //Err(diesel::NotFound) => {
-                //diesel::insert_into(deals) 
-                    //.values(&NewDeal{
-                        //buyer_id: Some(user.id),
-                        //seller_id: None,
-                        //house_id: Some(house.id),
-                        //access_code: "CODE".to_string(),
-                        //status: DealStatus::Initialized,
-                        //created: chrono::Utc::now().naive_utc(),
-                        //updated: chrono::Utc::now().naive_utc(),
-                    //}).get_result::<Deal>(&conn)?
-            //},
-            //Err(e) => return Err(ScoutError::from(e))
-        //};
+    #[derive(Insertable)]
+    #[table_name = "houses"]
+    pub struct NewHouse {
+        pub address: String,
+        pub lat: String,
+        pub lon: String,
+        pub created: chrono::NaiveDateTime,
+        pub updated: chrono::NaiveDateTime,
+    }
 
-    //Ok(deal)
-//}
+    #[derive(GraphQLInputObject, Clone)]
+    pub struct HouseInput {
+        pub address: String,
+        pub lat: String,
+        pub lon: String,
+    }
+}
