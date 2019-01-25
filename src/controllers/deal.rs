@@ -4,13 +4,27 @@ use deals::types::*;
 use deals::types::{Deal, House};
 use diesel::prelude::*;
 use error::Error;
-use rocket::http::Status;
-use rocket::State;
 use rocket_contrib::json::Json;
 use validator::Validate;
 
+#[get("/deals")]
+pub fn get_deals(user: CurrentUser, conn: Conn) -> Result<Json<Vec<Deal>>, Error> {
+    // Currently only admins can create deals
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+    use schema::deals::dsl::*;
+
+    let d = deals.filter(buyer_id.eq(&user.id)).load::<Deal>(&conn)?;
+
+    Ok(Json(d))
+}
+
+/// Create deal and house input data
 #[derive(Deserialize, Validate)]
-pub struct CreateDealAndHouseData {
+pub struct CreateDealAndHouseInput {
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
     pub address: String,
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
@@ -29,7 +43,7 @@ pub struct CreateDealAndHousePayload {
 pub fn create_deal(
     user: CurrentUser,
     conn: Conn,
-    input: Json<CreateDealAndHouseData>,
+    input: Json<CreateDealAndHouseInput>,
 ) -> Result<Json<CreateDealAndHousePayload>, Error> {
     use schema::deals::dsl::*;
     use schema::houses::dsl::id;
