@@ -44,76 +44,75 @@ impl<'r> Responder<'r> for Error {
         println!("{:?}", self);
 
         let (res_status, payload) = match self {
-            InputError(validation_errors) => {
-                let mut errors = HashMap::new();
-                for (field, ers) in validation_errors.field_errors() {
-                    errors.insert(
-                        field,
-                        ers.into_iter()
-                            .map(|err| err.message.to_owned())
-                            .collect::<Vec<_>>(),
-                    );
-                }
-                (
-                    Status::UnprocessableEntity,
-                    Json(json!({ "errors": errors })),
-                )
-            }
-            AccessDenied => (
-                Status::Forbidden,
-                Json(json!({
-                    "status": "error",
-                    "reason": "Forbidden"
-                })),
-            ),
-            ApiKeyError => (
-                Status::UnprocessableEntity,
-                Json(json!({
-                    "status": "error",
-                    "reason": "Api key error"
-                })),
-            ),
-            PasswordNoMatch => {
-                let mut errors = HashMap::new();
-                errors.insert("password", "Password does not match");
-                (
-                    Status::UnprocessableEntity,
-                    Json(json!({ "errors": errors })),
-                )
-            }
-            EmailTaken => {
-                let mut errors = HashMap::new();
-                errors.insert("email", "Email is taken");
-                (
-                    Status::UnprocessableEntity,
-                    Json(json!({ "errors": errors })),
-                )
-            }
-            EmailDoesntExist => {
-                let mut errors = HashMap::new();
-                errors.insert("email", "Email doesn't exist");
-                (
-                    Status::UnprocessableEntity,
-                    Json(json!({ "errors": errors })),
-                )
-            }
-            DealExists => {
-                let mut errors = HashMap::new();
-                errors.insert("deal", "Deal exists");
-                (
-                    Status::UnprocessableEntity,
-                    Json(json!({ "errors": errors })),
-                )
-            }
-            _ => (
-                Status::ServiceUnavailable,
-                Json(json!({
-                    "status": "error",
-                    "reason": "Service unavailable"
-                })),
-            ),
+            InputError(validation_errors) => format_validation_errors(validation_errors),
+            AccessDenied => access_denied(),
+            ApiKeyError => validation_error("api_key", "Api key is invalid"),
+            PasswordNoMatch => validation_error("password", "Password does not match"),
+            EmailTaken => validation_error("email", "Email is taken"),
+            EmailDoesntExist => validation_error("email", "Email doesn't exist"),
+            DealExists => validation_error("deal", "Deal exists"),
+            _ => unavailable(),
         };
 
         status::Custom(res_status, payload).respond_to(req)
     }
+}
+
+fn access_denied() -> (Status, Json<serde_json::Value>) {
+    (
+        Status::Forbidden,
+        Json(json!({
+            "status": "error",
+            "reason": "Forbidden"
+        })),
+    )
+}
+
+fn validation_error(key: &str, val: &str) -> (Status, Json<serde_json::Value>) {
+    let mut errors = HashMap::new();
+    errors.insert(key, val);
+    (
+        Status::UnprocessableEntity,
+        Json(json!({ "errors": errors })),
+    )
+}
+
+// Format multiple errors
+fn error(key: &str, val: &str) -> (Status, Json<serde_json::Value>) {
+    let mut errors = HashMap::new();
+    errors.insert(key, val);
+    (
+        Status::UnprocessableEntity,
+        Json(json!({ "errors": errors })),
+    )
+}
+
+// Format multiple errors
+fn unavailable() -> (Status, Json<serde_json::Value>) {
+    (
+        Status::ServiceUnavailable,
+        Json(json!({
+            "status": "error",
+            "reason": "Service unavailable"
+        })),
+    )
+}
+
+// Format multiple errors
+fn format_validation_errors(
+    validation_errors: ValidationErrors,
+) -> (Status, Json<serde_json::Value>) {
+    let mut errors = HashMap::new();
+    for (field, ers) in validation_errors.field_errors() {
+        errors.insert(
+            field,
+            ers.into_iter()
+                .map(|err| err.message.to_owned())
+                .collect::<Vec<_>>(),
+        );
+    }
+    (
+        Status::UnprocessableEntity,
+        Json(json!({ "errors": errors })),
+    )
 }
