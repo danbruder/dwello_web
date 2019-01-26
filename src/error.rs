@@ -44,9 +44,17 @@ impl<'r> Responder<'r> for Error {
         println!("{:?}", self);
 
         let (res_status, payload) = match self {
-            InputError(validation_errors) => format_validation_errors(validation_errors),
             AccessDenied => access_denied(),
             ApiKeyError => validation_error("api_key", "Api key is invalid"),
+            DieselError(e) => {
+                match e {
+                    diesel::result::Error::NotFound => not_found(),
+                    _ => unavailable()
+                }
+            },
+
+            // Validation errors
+            InputError(validation_errors) => format_validation_errors(validation_errors),
             PasswordNoMatch => validation_error("password", "Password does not match"),
             EmailTaken => validation_error("email", "Email is taken"),
             EmailDoesntExist => validation_error("email", "Email doesn't exist"),
@@ -78,12 +86,10 @@ fn validation_error(key: &str, val: &str) -> (Status, Json<serde_json::Value>) {
 }
 
 // Format multiple errors
-fn error(key: &str, val: &str) -> (Status, Json<serde_json::Value>) {
-    let mut errors = HashMap::new();
-    errors.insert(key, val);
+fn not_found() -> (Status, Json<serde_json::Value>) {
     (
-        Status::UnprocessableEntity,
-        Json(json!({ "errors": errors })),
+        Status::NotFound,
+        Json(json!({ "error": "Not found" })),
     )
 }
 
