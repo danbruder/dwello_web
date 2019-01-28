@@ -6,6 +6,7 @@ use diesel::prelude::*;
 use error::Error;
 use rocket_contrib::json::Json;
 use validator::Validate;
+use web::ApiData;
 
 #[derive(Serialize, Queryable)]
 pub struct DealWithHouse {
@@ -31,8 +32,10 @@ pub struct CreateDealAndHouseInput {
     pub lon: String,
 }
 
+type Response<T> = Result<Json<ApiData<T>>, Error>;
+
 #[get("/deals")]
-pub fn get_deals(user: CurrentUser, conn: Conn) -> Result<Json<Vec<Deal>>, Error> {
+pub fn get_deals(user: CurrentUser, conn: Conn) -> Response<Vec<Deal>> {
     // Currently only admins can create deals
     let user = match user {
         Admin(user) => user,
@@ -43,7 +46,11 @@ pub fn get_deals(user: CurrentUser, conn: Conn) -> Result<Json<Vec<Deal>>, Error
 
     let d = deals.filter(buyer_id.eq(&user.id)).load::<Deal>(&conn)?;
 
-    Ok(Json(d))
+    Ok(Json(ApiData {
+        data: d,
+        success: true,
+        ..Default::default()
+    }))
 }
 
 #[post("/deals", format = "application/json", data = "<input>")]
@@ -51,7 +58,7 @@ pub fn create_deal(
     user: CurrentUser,
     conn: Conn,
     input: Json<CreateDealAndHouseInput>,
-) -> Result<Json<DealWithHouse>, Error> {
+) -> Response<DealWithHouse> {
     use schema::deals::dsl::*;
     use schema::houses::dsl::id;
     use schema::houses::dsl::*;
@@ -105,16 +112,22 @@ pub fn create_deal(
         Err(e) => return Err(Error::from(e)),
     };
 
-    Ok(Json(DealWithHouse {
-        id: deal.id,
-        buyer_id: deal.buyer_id,
-        seller_id: deal.seller_id,
-        house_id: deal.house_id,
-        access_code: deal.access_code,
-        status: deal.status,
-        address: house.address,
-        lat: house.lat,
-        lon: house.lon,
+    Ok(Json(ApiData {
+        data: DealWithHouse {
+            id: deal.id,
+            buyer_id: deal.buyer_id,
+            seller_id: deal.seller_id,
+            house_id: deal.house_id,
+            access_code: deal.access_code,
+            status: deal.status,
+            address: house.address,
+            lat: house.lat,
+            lon: house.lon,
+        },
+        success: true,
+        error: None,
+        validation_errors: None,
+        page_info: None,
     }))
 }
 

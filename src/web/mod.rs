@@ -13,6 +13,27 @@ use rocket::request::{self, FromRequest, Request};
 use rocket::Outcome;
 use rocket::State;
 
+#[derive(Serialize)]
+pub struct PageInfo {
+    pub has_next_page: bool,
+    pub total_count: u32,
+}
+
+#[derive(Serialize)]
+pub struct ValidationError {
+    pub field: String,
+    pub message: String,
+}
+
+#[derive(Serialize, Default)]
+pub struct ApiData<T> {
+    pub data: T,
+    pub success: bool,
+    pub error_message: Option<String>,
+    pub validation_errors: Option<Vec<ValidationError>>,
+    pub page_info: Option<PageInfo>,
+}
+
 impl<'a, 'r> FromRequest<'a, 'r> for CurrentUser {
     type Error = Error;
 

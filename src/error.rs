@@ -9,8 +9,8 @@ use rocket::response::status;
 use rocket::response::Responder;
 use rocket_contrib::json::Json;
 use serde_json::json;
-use std::collections::HashMap;
 use validator::ValidationErrors;
+use web::{ApiData, ValidationError};
 
 #[derive(Debug)]
 pub enum Error {
@@ -46,11 +46,9 @@ impl<'r> Responder<'r> for Error {
         let (res_status, payload) = match self {
             AccessDenied => access_denied(),
             ApiKeyError => validation_error("api_key", "Api key is invalid"),
-            DieselError(e) => {
-                match e {
-                    diesel::result::Error::NotFound => not_found(),
-                    _ => unavailable()
-                }
+            DieselError(e) => match e {
+                diesel::result::Error::NotFound => not_found(),
+                _ => unavailable(),
             },
 
             // Validation errors
@@ -66,22 +64,28 @@ impl<'r> Responder<'r> for Error {
     }
 }
 
+type ErrorData = ApiData<Option<String>>;
+
 fn access_denied() -> (Status, Json<serde_json::Value>) {
     (
         Status::Forbidden,
-        Json(json!({
-            "status": "error",
-            "reason": "Forbidden"
+        Json(json!(ErrorData {
+            error_message: Some("Access deined".to_string()),
+            ..Default::default()
         })),
     )
 }
 
-fn validation_error(key: &str, val: &str) -> (Status, Json<serde_json::Value>) {
-    let mut errors = HashMap::new();
-    errors.insert(key, val);
+fn validation_error(field: &str, message: &str) -> (Status, Json<serde_json::Value>) {
     (
         Status::UnprocessableEntity,
-        Json(json!({ "errors": errors })),
+        Json(json!(ErrorData {
+            validation_errors: Some(vec![ValidationError {
+                field: field.to_string(),
+                message: message.to_string(),
+            }]),
+            ..Default::default()
+        })),
     )
 }
 
@@ -89,7 +93,10 @@ fn validation_error(key: &str, val: &str) -> (Status, Json<serde_json::Value>) {
 fn not_found() -> (Status, Json<serde_json::Value>) {
     (
         Status::NotFound,
-        Json(json!({ "error": "Not found" })),
+        Json(json!(ErrorData {
+            error_message: Some("Not found".to_string()),
+            ..Default::default()
+        })),
     )
 }
 
@@ -97,28 +104,37 @@ fn not_found() -> (Status, Json<serde_json::Value>) {
 fn unavailable() -> (Status, Json<serde_json::Value>) {
     (
         Status::ServiceUnavailable,
-        Json(json!({
-            "status": "error",
-            "reason": "Service unavailable"
+        Json(json!(ErrorData {
+            error_message: Some("Service unavailable".to_string()),
+            ..Default::default()
         })),
     )
 }
 
 // Format multiple errors
-fn format_validation_errors(
-    validation_errors: ValidationErrors,
-) -> (Status, Json<serde_json::Value>) {
-    let mut errors = HashMap::new();
-    for (field, ers) in validation_errors.field_errors() {
-        errors.insert(
-            field,
-            ers.into_iter()
-                .map(|err| err.message.to_owned())
-                .collect::<Vec<_>>(),
-        );
-    }
+fn format_validation_errors(e: ValidationErrors) -> (Status, Json<serde_json::Value>) {
+    let errors = e
+        .field_errors()
+        .iter()
+        .map(|(k, v)| {
+            let messages = v
+                .into_iter()
+                .filter(|f| f.message.is_some())
+                .map(|f| f.clone().message.unwrap().to_string())
+                .collect::<Vec<String>>()
+                .join(", ");
+            ValidationError {
+                field: k.to_string(),
+                message: messages,
+            }
+        })
+        .collect::<Vec<ValidationError>>();
+
     (
         Status::UnprocessableEntity,
-        Json(json!({ "errors": errors })),
+        Json(json!(ErrorData {
+            validation_errors: Some(errors),
+            ..Default::default()
+        })),
     )
 }

@@ -11,7 +11,6 @@ pub mod types {
     use diesel::deserialize::{self, FromSql};
     use diesel::serialize::{self, IsNull, Output, ToSql};
     use diesel::sql_types::Varchar;
-    use serde::{Deserialize, Deserializer};
     use std::io::Write;
 
     #[derive(Deserialize, Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
@@ -42,6 +41,12 @@ pub mod types {
         }
     }
 
+    impl Default for DealStatus {
+        fn default() -> Self {
+            DealStatus::Initialized
+        }
+    }
+
     #[derive(
         Deserialize,
         Serialize,
@@ -51,6 +56,7 @@ pub mod types {
         Clone,
         Queryable,
         AsChangeset,
+        Default,
     )]
     #[table_name = "deals"]
     pub struct Deal {

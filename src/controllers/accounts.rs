@@ -6,6 +6,7 @@ use diesel::result::Error::DatabaseError;
 use error::Error;
 use rocket_contrib::json::Json;
 use validator::Validate;
+use web::ApiData;
 
 #[derive(Deserialize)]
 pub struct LoginInput {
@@ -27,15 +28,17 @@ pub struct RegistrationInput {
     pub password: String,
 }
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize, Clone, Default)]
 pub struct AuthPayload {
     pub token: Option<String>,
     pub user: Option<User>,
 }
 
+type Response = Result<Json<ApiData<AuthPayload>>, Error>;
+
 /// Login
 #[post("/login", format = "application/json", data = "<input>")]
-pub fn login(conn: Conn, input: Json<LoginInput>) -> Result<Json<AuthPayload>, Error> {
+pub fn login(conn: Conn, input: Json<LoginInput>) -> Response {
     use schema::users::dsl::*;
 
     let Conn(conn) = conn;
@@ -60,15 +63,19 @@ pub fn login(conn: Conn, input: Json<LoginInput>) -> Result<Json<AuthPayload>, E
     let session = Session::new(conn, &user)?;
 
     // Return the auth payload
-    Ok(Json(AuthPayload {
-        token: Some(session.token),
-        user: Some(user),
+    Ok(Json(ApiData {
+        data: AuthPayload {
+            token: Some(session.token),
+            user: Some(user),
+        },
+        success: true,
+        ..Default::default()
     }))
 }
 
 /// Login
 #[post("/register", format = "application/json", data = "<input>")]
-pub fn register(conn: Conn, input: Json<RegistrationInput>) -> Result<Json<AuthPayload>, Error> {
+pub fn register(conn: Conn, input: Json<RegistrationInput>) -> Response {
     use schema::users::dsl::*;
 
     input.validate().map_err(|e| Error::InputError(e))?;
@@ -93,8 +100,12 @@ pub fn register(conn: Conn, input: Json<RegistrationInput>) -> Result<Json<AuthP
 
     let session = Session::new(conn, &user)?;
 
-    Ok(Json(AuthPayload {
-        token: Some(session.token),
-        user: Some(user),
+    Ok(Json(ApiData {
+        data: AuthPayload {
+            token: Some(session.token),
+            user: Some(user),
+        },
+        success: true,
+        ..Default::default()
     }))
 }
