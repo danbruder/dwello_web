@@ -125,7 +125,7 @@ pub fn create_deal(
             lon: house.lon,
         },
         success: true,
-        error: None,
+        error_message: None,
         validation_errors: None,
         page_info: None,
     }))
