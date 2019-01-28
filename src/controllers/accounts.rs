@@ -1,3 +1,4 @@
+use accounts::types::CurrentUser::*;
 use accounts::types::*;
 use db::Conn;
 use diesel::prelude::*;
@@ -34,11 +35,30 @@ pub struct AuthPayload {
     pub user: Option<User>,
 }
 
-type Response = Result<Json<ApiData<AuthPayload>>, Error>;
+type Response<T> = Result<Json<ApiData<T>>, Error>;
+
+#[get("/users")]
+pub fn all_users(user: CurrentUser, conn: Conn) -> Response<Vec<User>> {
+    use schema::users::dsl::*;
+
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+
+    let u = users.limit(10).load::<User>(&conn)?;
+
+    Ok(Json(ApiData {
+        data: u,
+        success: true,
+        ..Default::default()
+    }))
+}
 
 /// Login
 #[post("/login", format = "application/json", data = "<input>")]
-pub fn login(conn: Conn, input: Json<LoginInput>) -> Response {
+pub fn login(conn: Conn, input: Json<LoginInput>) -> Response<AuthPayload> {
     use schema::users::dsl::*;
 
     let Conn(conn) = conn;
@@ -75,7 +95,7 @@ pub fn login(conn: Conn, input: Json<LoginInput>) -> Response {
 
 /// Login
 #[post("/register", format = "application/json", data = "<input>")]
-pub fn register(conn: Conn, input: Json<RegistrationInput>) -> Response {
+pub fn register(conn: Conn, input: Json<RegistrationInput>) -> Response<AuthPayload> {
     use schema::users::dsl::*;
 
     input.validate().map_err(|e| Error::InputError(e))?;

@@ -5,6 +5,11 @@ use std::io::Cursor;
 
 pub struct CORS();
 
+#[options("/users")]
+pub fn cors<'a>() -> &'a str {
+    "Hello CORS"
+}
+
 impl Fairing for CORS {
     fn info(&self) -> Info {
         Info {

@@ -56,7 +56,6 @@ pub mod types {
         Clone,
         Queryable,
         AsChangeset,
-        Default,
     )]
     #[table_name = "deals"]
     pub struct Deal {
