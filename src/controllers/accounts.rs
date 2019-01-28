@@ -40,6 +40,7 @@ type Response<T> = Result<Json<ApiData<T>>, Error>;
 #[get("/users")]
 pub fn all_users(user: CurrentUser, conn: Conn) -> Response<Vec<User>> {
     use schema::users::dsl::*;
+    println!("{:?}", user);
 
     let user = match user {
         Admin(user) => user,

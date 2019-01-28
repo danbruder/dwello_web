@@ -61,6 +61,7 @@ fn is_valid(_key: &str) -> bool {
 }
 
 fn user_from_key(conn: PooledConnection, key: String) -> CurrentUser {
+    println!("In user frm key!, {}", key);
     User::from_key(conn, key).map_or(Anonymous, |u| match u.is_admin() {
         true => Admin(u),
         false => Authenticated(u),

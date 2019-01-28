@@ -83,7 +83,7 @@ pub mod types {
         pub updated: chrono::NaiveDateTime,
     }
 
-    #[derive(Serialize, Identifiable, GraphQLObject, Clone, Queryable)]
+    #[derive(Serialize, Debug, Identifiable, GraphQLObject, Clone, Queryable)]
     #[table_name = "users"]
     pub struct User {
         pub id: i32,
@@ -95,7 +95,7 @@ pub mod types {
         pub roles: Vec<Role>,
     }
 
-    #[derive(Serialize)]
+    #[derive(Serialize, Debug)]
     pub enum CurrentUser {
         Anonymous,
         Authenticated(User),
