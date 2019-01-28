@@ -1,4 +1,5 @@
 use accounts::types::*;
+use accounts::types::CurrentUser::*;
 use db::Conn;
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
@@ -31,6 +32,24 @@ pub struct RegistrationInput {
 pub struct AuthPayload {
     pub token: Option<String>,
     pub user: Option<User>,
+}
+
+
+#[get("/users")]
+pub fn all_users(user: CurrentUser, conn: Conn) -> Result<Json<Vec<User>>, Error> {
+    use schema::users::dsl::*;
+
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+
+    let u = users
+        .limit(10)
+        .load::<User>(&conn)?;
+
+    Ok(Json(u))
 }
 
 /// Login

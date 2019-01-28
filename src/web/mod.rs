@@ -52,8 +52,10 @@ pub fn launch() {
         .mount(
             "/",
             routes![
+                cors::cors,
                 accounts::login,
                 accounts::register,
+                accounts::all_users,
                 deal::create_deal,
                 deal::get_deals,
                 deal::update_deal,
