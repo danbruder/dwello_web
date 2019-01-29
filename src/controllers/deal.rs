@@ -4,6 +4,7 @@ use deals::types::*;
 use deals::types::{Deal, House};
 use diesel::prelude::*;
 use error::Error;
+use rocket::request::Form;
 use rocket_contrib::json::Json;
 use validator::Validate;
 use web::ApiData;
@@ -172,8 +173,17 @@ pub fn update_deal(
     }))
 }
 
-#[get("/views/deals-with-houses")]
-pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Response<Vec<DealWithHouse>> {
+#[derive(FromForm)]
+pub struct ViewDealsWithHousesQuery {
+    buyer_id: Option<i32>,
+}
+
+#[get("/views/deals-with-houses?<query..>")]
+pub fn deals_with_houses(
+    query: Option<Form<ViewDealsWithHousesQuery>>,
+    user: CurrentUser,
+    conn: Conn,
+) -> Response<Vec<DealWithHouse>> {
     use schema::deals;
     use schema::houses;
 
@@ -182,6 +192,14 @@ pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Response<Vec<DealWith
         _ => return Err(Error::AccessDenied),
     };
     let Conn(conn) = conn;
+
+    let bid = match query {
+        Some(q) => match q.buyer_id {
+            Some(b) => b,
+            None => user.id,
+        },
+        None => user.id,
+    };
 
     let d = deals::table
         .inner_join(houses::table)
@@ -196,7 +214,7 @@ pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Response<Vec<DealWith
             houses::lat,
             houses::lon,
         ))
-        .filter(deals::dsl::buyer_id.eq(user.id))
+        .filter(deals::dsl::buyer_id.eq(bid))
         .limit(10)
         .order_by(deals::created.desc())
         .load::<DealWithHouse>(&conn)?;
