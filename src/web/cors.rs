@@ -1,28 +1,41 @@
-use rocket::{Request, Response};
 use rocket::fairing::{Fairing, Info, Kind};
-use rocket::http::{Header, ContentType, Method};
+use rocket::http::{ContentType, Header, Method};
+use rocket::{Request, Response};
 use std::io::Cursor;
+use std::path::PathBuf;
 
 pub struct CORS();
 
-#[options("/users")]
-pub fn cors<'a>() -> &'a str {
-    "Hello CORS"
+#[options("/<params..>")]
+pub fn cors(params: PathBuf) -> String {
+    "".to_owned()
 }
 
 impl Fairing for CORS {
     fn info(&self) -> Info {
         Info {
             name: "Add CORS headers to requests",
-            kind: Kind::Response
+            kind: Kind::Response,
         }
     }
 
     fn on_response(&self, request: &Request, response: &mut Response) {
-        response.set_header(Header::new("Access-Control-Allow-Origin", "*"));
-        response.set_header(Header::new("Access-Control-Allow-Methods", "POST, GET, OPTIONS"));
-        response.set_header(Header::new("Access-Control-Allow-Headers", "Content-Type, x-api-key"));
-        response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+        if request.method() == Method::Options || response.content_type() == Some(ContentType::JSON)
+        {
+            response.set_header(Header::new(
+                "Access-Control-Allow-Origin",
+                "http://localhost:3000",
+            ));
+            response.set_header(Header::new(
+                "Access-Control-Allow-Methods",
+                "POST, GET, OPTIONS",
+            ));
+            response.set_header(Header::new(
+                "Access-Control-Allow-Headers",
+                "Content-Type, X-API-KEY",
+            ));
+            response.set_header(Header::new("Access-Control-Allow-Credentials", "true"));
+        }
 
         if request.method() == Method::Options {
             response.set_header(ContentType::Plain);

@@ -9,9 +9,11 @@ use rocket_contrib::json::Json;
 use validator::Validate;
 use web::ApiData;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, Validate)]
 pub struct LoginInput {
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
     pub email: String,
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
     pub password: String,
 }
 
@@ -62,6 +64,7 @@ pub fn all_users(user: CurrentUser, conn: Conn) -> Response<Vec<User>> {
 pub fn login(conn: Conn, input: Json<LoginInput>) -> Response<AuthPayload> {
     use schema::users::dsl::*;
 
+    input.validate().map_err(|e| Error::InputError(e))?;
     let Conn(conn) = conn;
 
     // Load user

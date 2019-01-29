@@ -78,7 +78,7 @@ fn access_denied() -> (Status, Json<serde_json::Value>) {
 
 fn validation_error(field: &str, message: &str) -> (Status, Json<serde_json::Value>) {
     (
-        Status::UnprocessableEntity,
+        Status::PartialContent,
         Json(json!(ErrorData {
             validation_errors: Some(vec![ValidationError {
                 field: field.to_string(),
@@ -131,7 +131,7 @@ fn format_validation_errors(e: ValidationErrors) -> (Status, Json<serde_json::Va
         .collect::<Vec<ValidationError>>();
 
     (
-        Status::UnprocessableEntity,
+        Status::PartialContent,
         Json(json!(ErrorData {
             validation_errors: Some(errors),
             ..Default::default()
