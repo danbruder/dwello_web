@@ -141,7 +141,7 @@ pub fn update_deal(
     user: CurrentUser,
     conn: Conn,
     input: Json<UpdateDeal>,
-) -> Result<Json<Deal>, Error> {
+) -> Response<Deal> {
     use schema::deals::dsl::*;
 
     // Currently only admins can create deals
@@ -163,11 +163,17 @@ pub fn update_deal(
         ))
         .get_result::<Deal>(&conn)?;
 
-    Ok(Json(deal))
+    Ok(Json(ApiData {
+        data: deal,
+        success: true,
+        error_message: None,
+        validation_errors: None,
+        page_info: None,
+    }))
 }
 
 #[get("/views/deals-with-houses")]
-pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Result<Json<Vec<DealWithHouse>>, Error> {
+pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Response<Vec<DealWithHouse>> {
     use schema::deals;
     use schema::houses;
 
@@ -192,7 +198,14 @@ pub fn deals_with_houses(user: CurrentUser, conn: Conn) -> Result<Json<Vec<DealW
         ))
         .filter(deals::dsl::buyer_id.eq(user.id))
         .limit(10)
+        .order_by(deals::created.desc())
         .load::<DealWithHouse>(&conn)?;
 
-    Ok(Json(d))
+    Ok(Json(ApiData {
+        data: d,
+        success: true,
+        error_message: None,
+        validation_errors: None,
+        page_info: None,
+    }))
 }
