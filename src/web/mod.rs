@@ -78,6 +78,7 @@ pub fn launch() {
                 accounts::login,
                 accounts::register,
                 accounts::all_users,
+                accounts::user_by_id,
                 deal::create_deal,
                 deal::get_deals,
                 deal::update_deal,

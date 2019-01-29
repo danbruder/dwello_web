@@ -59,6 +59,25 @@ pub fn all_users(user: CurrentUser, conn: Conn) -> Response<Vec<User>> {
     }))
 }
 
+#[get("/users/<user_id>")]
+pub fn user_by_id(user_id: i32, user: CurrentUser, conn: Conn) -> Response<User> {
+    use schema::users::dsl::*;
+
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+
+    let u = users.find(user_id).first::<User>(&conn)?;
+
+    Ok(Json(ApiData {
+        data: u,
+        success: true,
+        ..Default::default()
+    }))
+}
+
 /// Login
 #[post("/login", format = "application/json", data = "<input>")]
 pub fn login(conn: Conn, input: Json<LoginInput>) -> Response<AuthPayload> {

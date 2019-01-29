@@ -83,7 +83,7 @@ pub mod types {
         pub updated: chrono::NaiveDateTime,
     }
 
-    #[derive(Serialize, Debug, Identifiable, GraphQLObject, Clone, Queryable)]
+    #[derive(Serialize, Debug, Default, Identifiable, GraphQLObject, Clone, Queryable)]
     #[table_name = "users"]
     pub struct User {
         pub id: i32,
