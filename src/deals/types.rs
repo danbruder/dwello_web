@@ -9,7 +9,7 @@ use schema::{deals, houses};
 use std::io::Write;
 use validator::Validate;
 
-#[derive(Deserialize, Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+#[derive(Deserialize, Serialize, Debug, Copy, Clone, AsExpression, FromSqlRow)]
 #[sql_type = "Varchar"]
 pub enum DealStatus {
     Initialized,
@@ -43,9 +43,7 @@ impl Default for DealStatus {
     }
 }
 
-#[derive(
-    Deserialize, Serialize, Identifiable, GraphQLObject, Associations, Clone, Queryable, AsChangeset,
-)]
+#[derive(Deserialize, Serialize, Identifiable, Associations, Clone, Queryable, AsChangeset)]
 #[table_name = "deals"]
 pub struct Deal {
     pub id: i32,
@@ -75,7 +73,7 @@ pub struct UpdateDeal {
     pub status: Option<DealStatus>,
 }
 
-#[derive(Serialize, Identifiable, GraphQLObject, Clone, Queryable)]
+#[derive(Serialize, Identifiable, Clone, Queryable)]
 #[table_name = "houses"]
 pub struct House {
     pub id: i32,
@@ -96,7 +94,7 @@ pub struct NewHouse {
     pub updated: chrono::NaiveDateTime,
 }
 
-#[derive(GraphQLInputObject, Clone)]
+#[derive(Clone)]
 pub struct HouseInput {
     pub address: String,
     pub lat: String,

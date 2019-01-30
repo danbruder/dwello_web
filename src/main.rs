@@ -3,7 +3,6 @@
 
 extern crate bcrypt;
 extern crate dotenv;
-extern crate juniper_rocket;
 extern crate rocket_contrib;
 extern crate serde;
 extern crate serde_json;
@@ -11,8 +10,6 @@ extern crate validator;
 
 #[macro_use]
 extern crate rocket;
-#[macro_use]
-extern crate juniper;
 #[macro_use]
 extern crate diesel;
 #[macro_use]

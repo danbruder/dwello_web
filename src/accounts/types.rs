@@ -6,11 +6,10 @@ use schema::{sessions, users};
 use std::io::Write;
 use validator::Validate;
 
-#[derive(GraphQLObject, Clone, Queryable)]
+#[derive(Clone, Queryable)]
 pub struct Session {
     pub id: i32,
     pub uid: i32,
-    #[graphql(skip)]
     pub token: String,
     pub active: bool,
     pub created: chrono::NaiveDateTime,
@@ -27,13 +26,12 @@ pub struct NewSession {
     pub updated: chrono::NaiveDateTime,
 }
 
-#[derive(Serialize, Debug, Default, Identifiable, GraphQLObject, Clone, Queryable)]
+#[derive(Serialize, Debug, Default, Identifiable, Clone, Queryable)]
 #[table_name = "users"]
 pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
-    #[graphql(skip)]
     #[serde(skip_serializing)]
     pub password_hash: String,
     pub roles: Vec<Role>,
@@ -58,7 +56,7 @@ pub struct NewUser {
 /*
 * Deal status
 */
-#[derive(Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+#[derive(Serialize, Debug, Copy, Clone, AsExpression, FromSqlRow)]
 #[sql_type = "Text"]
 pub enum Role {
     Anonymous,
