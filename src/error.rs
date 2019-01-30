@@ -9,14 +9,15 @@ use rocket::response::status;
 use rocket::response::Responder;
 use rocket_contrib::json::Json;
 use serde_json::json;
-use validator::ValidationErrors;
+use std::borrow::Cow;
+use validator::{ValidationError as ExtValidationError, ValidationErrors};
 use web::{ApiData, ValidationError};
 
 #[derive(Debug)]
 pub enum Error {
     BcryptError(bcrypt::BcryptError),
     DieselError(diesel::result::Error),
-    InputError(ValidationErrors),
+    InvalidInput(validator::ValidationErrors),
     ServiceUnavailable,
     ApiKeyError,
     AccessDenied,
@@ -38,6 +39,22 @@ impl From<diesel::result::Error> for Error {
     }
 }
 
+impl From<validator::ValidationErrors> for Error {
+    fn from(error: validator::ValidationErrors) -> Self {
+        InvalidInput(error)
+    }
+}
+
+impl Error {
+    pub fn from_custom_validation(code: &'static str, field: &'static str, message: &str) -> Self {
+        let mut errors = ValidationErrors::new();
+        let mut error = ExtValidationError::new(code.clone());
+        error.message = Some(Cow::from(message.to_owned()));
+        errors.add(field.clone(), error);
+        Error::InvalidInput(errors)
+    }
+}
+
 impl<'r> Responder<'r> for Error {
     fn respond_to(self, req: &Request) -> response::Result<'r> {
         // Log the error
@@ -52,7 +69,7 @@ impl<'r> Responder<'r> for Error {
             },
 
             // Validation errors
-            InputError(validation_errors) => format_validation_errors(validation_errors),
+            InvalidInput(validation_errors) => format_validation_errors(validation_errors),
             PasswordNoMatch => validation_error("password", "Password does not match"),
             EmailTaken => validation_error("email", "Email is taken"),
             EmailDoesntExist => validation_error("email", "Email doesn't exist"),
@@ -112,7 +129,7 @@ fn unavailable() -> (Status, Json<serde_json::Value>) {
 }
 
 // Format multiple errors
-fn format_validation_errors(e: ValidationErrors) -> (Status, Json<serde_json::Value>) {
+fn format_validation_errors(e: validator::ValidationErrors) -> (Status, Json<serde_json::Value>) {
     let errors = e
         .field_errors()
         .iter()

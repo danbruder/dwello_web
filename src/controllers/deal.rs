@@ -6,7 +6,8 @@ use diesel::prelude::*;
 use error::Error;
 use rocket::request::Form;
 use rocket_contrib::json::Json;
-use validator::Validate;
+use std::borrow::Cow;
+use validator::{Validate, ValidationError, ValidationErrors};
 use web::ApiData;
 
 #[derive(Serialize, Queryable)]
@@ -72,7 +73,8 @@ pub fn create_deal(
     };
     let Conn(conn) = conn;
     let formatted_address = input.address.trim().to_uppercase();
-    input.validate().map_err(|e| Error::InputError(e))?;
+
+    input.validate()?;
 
     // Look for a house with address
     let house = match houses
@@ -99,7 +101,13 @@ pub fn create_deal(
         .filter(buyer_id.eq(&input.buyer_id))
         .first::<Deal>(&conn)
     {
-        Ok(_) => return Err(Error::DealExists),
+        Ok(_) => {
+            let mut errors = ValidationErrors::new();
+            let mut error = ValidationError::new("deal_exists");
+            error.message = Some(Cow::from("Existing deal for address"));
+            errors.add("address", error);
+            return Err(Error::InvalidInput(errors));
+        }
         Err(diesel::NotFound) => diesel::insert_into(deals)
             .values(&NewDeal {
                 buyer_id: Some(input.buyer_id),

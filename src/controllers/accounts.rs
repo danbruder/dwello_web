@@ -83,7 +83,7 @@ pub fn user_by_id(user_id: i32, user: CurrentUser, conn: Conn) -> Response<User>
 pub fn login(conn: Conn, input: Json<LoginInput>) -> Response<AuthPayload> {
     use schema::users::dsl::*;
 
-    input.validate().map_err(|e| Error::InputError(e))?;
+    input.validate()?;
     let Conn(conn) = conn;
 
     // Load user
@@ -121,7 +121,7 @@ pub fn login(conn: Conn, input: Json<LoginInput>) -> Response<AuthPayload> {
 pub fn register(conn: Conn, input: Json<RegistrationInput>) -> Response<AuthPayload> {
     use schema::users::dsl::*;
 
-    input.validate().map_err(|e| Error::InputError(e))?;
+    input.validate()?;
 
     let input = input.clone();
 
