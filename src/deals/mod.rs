@@ -84,7 +84,6 @@ pub mod types {
     #[derive(Deserialize)]
     #[table_name = "deals"]
     pub struct UpdateDeal {
-        pub seller_id: Option<i32>,
         pub status: Option<DealStatus>,
     }
 

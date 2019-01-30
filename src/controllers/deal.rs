@@ -25,6 +25,7 @@ pub struct DealWithHouse {
 /// Create deal and house input data
 #[derive(Deserialize, Validate)]
 pub struct CreateDealAndHouseInput {
+    pub buyer_id: i32,
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
     pub address: String,
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
@@ -95,13 +96,13 @@ pub fn create_deal(
     // Make sure one doesn't exist already
     let deal = match deals
         .filter(house_id.eq(&house.id))
-        .filter(buyer_id.eq(&user.id))
+        .filter(buyer_id.eq(&input.buyer_id))
         .first::<Deal>(&conn)
     {
         Ok(_) => return Err(Error::DealExists),
         Err(diesel::NotFound) => diesel::insert_into(deals)
             .values(&NewDeal {
-                buyer_id: Some(user.id),
+                buyer_id: Some(input.buyer_id),
                 seller_id: None,
                 house_id: Some(house.id),
                 access_code: "CODE".to_string(),
@@ -142,8 +143,10 @@ pub fn update_deal(
     user: CurrentUser,
     conn: Conn,
     input: Json<UpdateDeal>,
-) -> Response<Deal> {
+) -> Response<DealWithHouse> {
     use schema::deals::dsl::*;
+    use schema::deals::dsl::{id, updated};
+    use schema::houses::dsl::*;
 
     // Currently only admins can create deals
     let _ = match user {
@@ -158,11 +161,26 @@ pub fn update_deal(
     // If it is not set, ignore.
     let deal = diesel::update(&deal)
         .set((
-            seller_id.eq(input.seller_id),
             status.eq(input.status.unwrap_or(deal.status)),
             updated.eq(chrono::Utc::now().naive_utc()),
         ))
-        .get_result::<Deal>(&conn)?;
+        .execute(&conn)?;
+
+    let deal = deals
+        .inner_join(houses)
+        .select((
+            id,
+            buyer_id,
+            seller_id,
+            house_id,
+            access_code,
+            status,
+            address,
+            lat,
+            lon,
+        ))
+        .filter(id.eq(deal_id))
+        .first::<DealWithHouse>(&conn)?;
 
     Ok(Json(ApiData {
         data: deal,
