@@ -14,10 +14,10 @@ use rocket::Rocket;
 pub fn build() -> Rocket {
     rocket::ignite()
         .manage(Pool(create_pool()))
+        .mount("/", routes![cors::cors, frontend::assets])
         .mount(
-            "/",
+            "/api/",
             routes![
-                cors::cors,
                 accounts::login,
                 accounts::register,
                 accounts::all_users,
