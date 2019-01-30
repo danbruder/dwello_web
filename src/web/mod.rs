@@ -3,15 +3,17 @@
 //
 pub mod cors;
 
+use accounts;
 use accounts::types::CurrentUser::*;
-use accounts::types::{CurrentUser, User};
-use controllers::{accounts, deal};
+use accounts::types::CurrentUser;
+use controllers;
 use db::{create_pool, Pool, PooledConnection};
 use error::Error;
 use rocket::http::Status;
 use rocket::request::{self, FromRequest, Request};
 use rocket::Outcome;
 use rocket::State;
+use rocket_contrib::json::Json;
 
 #[derive(Serialize)]
 pub struct PageInfo {
@@ -26,13 +28,15 @@ pub struct ValidationError {
 }
 
 #[derive(Serialize, Default)]
-pub struct ApiData<T> {
+pub struct Payload<T> {
     pub data: T,
     pub success: bool,
     pub error_message: Option<String>,
     pub validation_errors: Option<Vec<ValidationError>>,
     pub page_info: Option<PageInfo>,
 }
+
+pub type ApiResponse<T> = Result<Json<Payload<T>>, Error>;
 
 impl<'a, 'r> FromRequest<'a, 'r> for CurrentUser {
     type Error = Error;
@@ -60,9 +64,9 @@ fn is_valid(_key: &str) -> bool {
     true
 }
 
+/// Get type of user from their session key
 fn user_from_key(conn: PooledConnection, key: String) -> CurrentUser {
-    println!("In user frm key!, {}", key);
-    User::from_key(conn, key).map_or(Anonymous, |u| match u.is_admin() {
+    accounts::user_from_key(conn, key).map_or(Anonymous, |u| match accounts::user_is_admin(&u) {
         true => Admin(u),
         false => Authenticated(u),
     })
@@ -75,14 +79,14 @@ pub fn launch() {
             "/",
             routes![
                 cors::cors,
-                accounts::login,
-                accounts::register,
-                accounts::all_users,
-                accounts::user_by_id,
-                deal::create_deal,
-                deal::get_deals,
-                deal::update_deal,
-                deal::deals_with_houses,
+                controllers::accounts::login,
+                controllers::accounts::register,
+                controllers::accounts::all_users,
+                controllers::accounts::user_by_id,
+                controllers::deal::create_deal,
+                controllers::deal::get_deals,
+                controllers::deal::update_deal,
+                controllers::deal::deals_with_houses,
             ],
         )
         .attach(cors::CORS())

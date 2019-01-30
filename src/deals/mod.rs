@@ -1,117 +1,219 @@
 //
 // deal/mod.rs
 //
-pub mod types {
-    //
-    // deal/types.rs
-    //
-    use diesel::pg::Pg;
-    use schema::{deals, houses};
-    //use accounts::types::User;
-    use diesel::deserialize::{self, FromSql};
-    use diesel::serialize::{self, IsNull, Output, ToSql};
-    use diesel::sql_types::Varchar;
-    use std::io::Write;
+pub mod types;
 
-    #[derive(Deserialize, Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
-    #[sql_type = "Varchar"]
-    pub enum DealStatus {
-        Initialized,
-        MailerSent,
-    }
+use accounts::types::{CurrentUser, CurrentUser::*};
+use db::Conn;
+use deals::types::*;
+use deals::types::{Deal, House};
+use diesel::prelude::*;
+use error::Error;
+use validator::Validate;
+use web::Payload;
 
-    impl ToSql<Varchar, Pg> for DealStatus {
-        fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
-            match *self {
-                DealStatus::Initialized => out.write_all(b"initialized")?,
-                DealStatus::MailerSent => out.write_all(b"mailer_sent")?,
-            }
+type Response<T> = Result<Payload<T>, Error>;
 
-            Ok(IsNull::No)
+pub fn get_deals(user: CurrentUser, conn: Conn) -> Response<Vec<Deal>> {
+    // Currently only admins can create deals
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+    use schema::deals::dsl::*;
+
+    let d = deals.filter(buyer_id.eq(&user.id)).load::<Deal>(&conn)?;
+
+    Ok(Payload {
+        data: d,
+        success: true,
+        ..Default::default()
+    })
+}
+
+pub fn create_deal(
+    user: CurrentUser,
+    conn: Conn,
+    input: CreateDealAndHouseInput,
+) -> Response<DealWithHouse> {
+    use schema::deals::dsl::*;
+    //use schema::houses::dsl::id;
+    use schema::houses::dsl::*;
+
+    // Currently only admins can create deals
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+    let formatted_address = input.address.trim().to_uppercase();
+
+    input.validate()?;
+
+    // Look for a house with address
+    let house = match houses
+        .filter(address.eq(&formatted_address))
+        .first::<House>(&conn)
+    {
+        Ok(house) => house,
+        Err(diesel::NotFound) => diesel::insert_into(houses)
+            .values(&NewHouse {
+                address: formatted_address,
+                lat: input.lat.clone(),
+                lon: input.lon.clone(),
+                created: chrono::Utc::now().naive_utc(),
+                updated: chrono::Utc::now().naive_utc(),
+            })
+            .get_result::<House>(&conn)?,
+        Err(e) => return Err(Error::from(e)),
+    };
+
+    // Create a deal and link it to the house and buyer
+    // Make sure one doesn't exist already
+    let deal = match deals
+        .filter(house_id.eq(&house.id))
+        .filter(buyer_id.eq(&input.buyer_id))
+        .first::<Deal>(&conn)
+    {
+        Ok(_) => {
+            return Err(Error::from_custom_validation(
+                "deal_exists",
+                "address",
+                "Existing deal for address",
+            ));
         }
-    }
+        Err(diesel::NotFound) => diesel::insert_into(deals)
+            .values(&NewDeal {
+                buyer_id: Some(input.buyer_id),
+                seller_id: None,
+                house_id: Some(house.id),
+                access_code: "CODE".to_string(),
+                status: DealStatus::Initialized,
+                created: chrono::Utc::now().naive_utc(),
+                updated: chrono::Utc::now().naive_utc(),
+            })
+            .get_result::<Deal>(&conn)?,
+        Err(e) => return Err(Error::from(e)),
+    };
 
-    impl FromSql<Varchar, Pg> for DealStatus {
-        fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
-            match not_none!(bytes) {
-                b"initialized" => Ok(DealStatus::Initialized),
-                b"mailer_sent" => Ok(DealStatus::MailerSent),
-                _ => Err("Unrecognized enum variant".into()),
-            }
-        }
-    }
+    Ok(Payload {
+        data: DealWithHouse {
+            id: deal.id,
+            buyer_id: deal.buyer_id,
+            seller_id: deal.seller_id,
+            house_id: deal.house_id,
+            access_code: deal.access_code,
+            status: deal.status,
+            address: house.address,
+            lat: house.lat,
+            lon: house.lon,
+        },
+        success: true,
+        error_message: None,
+        validation_errors: None,
+        page_info: None,
+    })
+}
 
-    impl Default for DealStatus {
-        fn default() -> Self {
-            DealStatus::Initialized
-        }
-    }
+pub fn update_deal(
+    deal_id: i32,
+    user: CurrentUser,
+    conn: Conn,
+    input: UpdateDeal,
+) -> Response<DealWithHouse> {
+    use schema::deals::dsl::*;
+    use schema::deals::dsl::{id, updated};
+    use schema::houses::dsl::*;
 
-    #[derive(
-        Deserialize,
-        Serialize,
-        Identifiable,
-        GraphQLObject,
-        Associations,
-        Clone,
-        Queryable,
-        AsChangeset,
-    )]
-    #[table_name = "deals"]
-    pub struct Deal {
-        pub id: i32,
-        pub buyer_id: Option<i32>,
-        pub seller_id: Option<i32>,
-        pub house_id: Option<i32>,
-        pub access_code: String,
-        pub status: DealStatus,
-        pub created: chrono::NaiveDateTime,
-        pub updated: chrono::NaiveDateTime,
-    }
+    // Currently only admins can create deals
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
 
-    #[derive(Insertable)]
-    #[table_name = "deals"]
-    pub struct NewDeal {
-        pub buyer_id: Option<i32>,
-        pub seller_id: Option<i32>,
-        pub house_id: Option<i32>,
-        pub access_code: String,
-        pub status: DealStatus,
-        pub created: chrono::NaiveDateTime,
-        pub updated: chrono::NaiveDateTime,
-    }
+    let deal = deals.filter(id.eq(deal_id)).first::<Deal>(&conn)?;
 
-    #[derive(Deserialize)]
-    #[table_name = "deals"]
-    pub struct UpdateDeal {
-        pub status: Option<DealStatus>,
-    }
+    // If the field is set, use the value
+    // If it is not set, ignore.
+    let _ = diesel::update(&deal)
+        .set((
+            status.eq(input.status.unwrap_or(deal.status)),
+            updated.eq(chrono::Utc::now().naive_utc()),
+        ))
+        .execute(&conn)?;
 
-    #[derive(Serialize, Identifiable, GraphQLObject, Clone, Queryable)]
-    #[table_name = "houses"]
-    pub struct House {
-        pub id: i32,
-        pub address: String,
-        pub lat: String,
-        pub lon: String,
-        pub created: chrono::NaiveDateTime,
-        pub updated: chrono::NaiveDateTime,
-    }
+    let deal = deals
+        .inner_join(houses)
+        .select((
+            id,
+            buyer_id,
+            seller_id,
+            house_id,
+            access_code,
+            status,
+            address,
+            lat,
+            lon,
+        ))
+        .filter(id.eq(deal_id))
+        .first::<DealWithHouse>(&conn)?;
 
-    #[derive(Insertable)]
-    #[table_name = "houses"]
-    pub struct NewHouse {
-        pub address: String,
-        pub lat: String,
-        pub lon: String,
-        pub created: chrono::NaiveDateTime,
-        pub updated: chrono::NaiveDateTime,
-    }
+    Ok(Payload {
+        data: deal,
+        success: true,
+        error_message: None,
+        validation_errors: None,
+        page_info: None,
+    })
+}
 
-    #[derive(GraphQLInputObject, Clone)]
-    pub struct HouseInput {
-        pub address: String,
-        pub lat: String,
-        pub lon: String,
-    }
+pub fn deals_with_houses(
+    query: Option<ViewDealsWithHousesQuery>,
+    user: CurrentUser,
+    conn: Conn,
+) -> Response<Vec<DealWithHouse>> {
+    use schema::deals;
+    use schema::houses;
+
+    let user = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+    let Conn(conn) = conn;
+
+    let bid = match query {
+        Some(q) => match q.buyer_id {
+            Some(b) => b,
+            None => user.id,
+        },
+        None => user.id,
+    };
+
+    let d = deals::table
+        .inner_join(houses::table)
+        .select((
+            deals::id,
+            deals::buyer_id,
+            deals::seller_id,
+            deals::house_id,
+            deals::access_code,
+            deals::status,
+            houses::address,
+            houses::lat,
+            houses::lon,
+        ))
+        .filter(deals::dsl::buyer_id.eq(bid))
+        .limit(10)
+        .order_by(deals::created.desc())
+        .load::<DealWithHouse>(&conn)?;
+
+    Ok(Payload {
+        data: d,
+        success: true,
+        error_message: None,
+        validation_errors: None,
+        page_info: None,
+    })
 }

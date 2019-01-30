@@ -19,7 +19,6 @@ mod schema;
 mod error;
 mod db;
 mod web;
-mod graphql;
 mod accounts;
 mod deals;
 mod controllers;

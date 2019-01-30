@@ -11,7 +11,7 @@ use rocket_contrib::json::Json;
 use serde_json::json;
 use std::borrow::Cow;
 use validator::{ValidationError as ExtValidationError, ValidationErrors};
-use web::{ApiData, ValidationError};
+use web::{Payload, ValidationError};
 
 #[derive(Debug)]
 pub enum Error {
@@ -21,10 +21,6 @@ pub enum Error {
     ServiceUnavailable,
     ApiKeyError,
     AccessDenied,
-    PasswordNoMatch,
-    EmailDoesntExist,
-    EmailTaken,
-    DealExists,
 }
 
 impl From<bcrypt::BcryptError> for Error {
@@ -70,10 +66,6 @@ impl<'r> Responder<'r> for Error {
 
             // Validation errors
             InvalidInput(validation_errors) => format_validation_errors(validation_errors),
-            PasswordNoMatch => validation_error("password", "Password does not match"),
-            EmailTaken => validation_error("email", "Email is taken"),
-            EmailDoesntExist => validation_error("email", "Email doesn't exist"),
-            DealExists => validation_error("deal", "Deal exists"),
             _ => unavailable(),
         };
 
@@ -81,12 +73,12 @@ impl<'r> Responder<'r> for Error {
     }
 }
 
-type ErrorData = ApiData<Option<String>>;
+type ErrorPayload = Payload<Option<String>>;
 
 fn access_denied() -> (Status, Json<serde_json::Value>) {
     (
         Status::Forbidden,
-        Json(json!(ErrorData {
+        Json(json!(ErrorPayload {
             error_message: Some("Access deined".to_string()),
             ..Default::default()
         })),
@@ -96,7 +88,7 @@ fn access_denied() -> (Status, Json<serde_json::Value>) {
 fn validation_error(field: &str, message: &str) -> (Status, Json<serde_json::Value>) {
     (
         Status::PartialContent,
-        Json(json!(ErrorData {
+        Json(json!(ErrorPayload {
             validation_errors: Some(vec![ValidationError {
                 field: field.to_string(),
                 message: message.to_string(),
@@ -110,7 +102,7 @@ fn validation_error(field: &str, message: &str) -> (Status, Json<serde_json::Val
 fn not_found() -> (Status, Json<serde_json::Value>) {
     (
         Status::NotFound,
-        Json(json!(ErrorData {
+        Json(json!(ErrorPayload {
             error_message: Some("Not found".to_string()),
             ..Default::default()
         })),
@@ -121,7 +113,7 @@ fn not_found() -> (Status, Json<serde_json::Value>) {
 fn unavailable() -> (Status, Json<serde_json::Value>) {
     (
         Status::ServiceUnavailable,
-        Json(json!(ErrorData {
+        Json(json!(ErrorPayload {
             error_message: Some("Service unavailable".to_string()),
             ..Default::default()
         })),
@@ -149,7 +141,7 @@ fn format_validation_errors(e: validator::ValidationErrors) -> (Status, Json<ser
 
     (
         Status::PartialContent,
-        Json(json!(ErrorData {
+        Json(json!(ErrorPayload {
             validation_errors: Some(errors),
             ..Default::default()
         })),

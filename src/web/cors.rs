@@ -6,8 +6,8 @@ use std::path::PathBuf;
 
 pub struct CORS();
 
-#[options("/<params..>")]
-pub fn cors(params: PathBuf) -> String {
+#[options("/<_params..>")]
+pub fn cors(_params: PathBuf) -> String {
     "".to_owned()
 }
 
