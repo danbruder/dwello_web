@@ -9,9 +9,9 @@ use db::{Conn, PooledConnection};
 use diesel::prelude::*;
 use diesel::result::DatabaseErrorKind;
 use diesel::result::Error::DatabaseError;
-use error::Error;
+use result::Error;
+use result::{Payload, Response};
 use validator::Validate;
-use web::Payload;
 
 ///
 /// Helpers
@@ -75,8 +75,6 @@ pub fn user_is_admin(user: &User) -> bool {
 ///
 /// Public API
 ///
-
-type Response<T> = Result<Payload<T>, Error>;
 
 /// Get all users
 pub fn all_users(user: CurrentUser, conn: Conn) -> Response<Vec<User>> {

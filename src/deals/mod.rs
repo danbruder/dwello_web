@@ -8,12 +8,10 @@ use db::Conn;
 use deals::types::*;
 use deals::types::{Deal, House};
 use diesel::prelude::*;
-use error::Error;
+use result::{Error, Payload, Response};
 use validator::Validate;
-use web::Payload;
 
-type Response<T> = Result<Payload<T>, Error>;
-
+/// Get deals
 pub fn get_deals(user: CurrentUser, conn: Conn) -> Response<Vec<Deal>> {
     // Currently only admins can create deals
     let user = match user {
@@ -32,6 +30,7 @@ pub fn get_deals(user: CurrentUser, conn: Conn) -> Response<Vec<Deal>> {
     })
 }
 
+/// Create deal
 pub fn create_deal(
     user: CurrentUser,
     conn: Conn,
@@ -116,6 +115,7 @@ pub fn create_deal(
     })
 }
 
+/// Update Deal
 pub fn update_deal(
     deal_id: i32,
     user: CurrentUser,
@@ -169,6 +169,7 @@ pub fn update_deal(
     })
 }
 
+/// Deals with houses
 pub fn deals_with_houses(
     query: Option<ViewDealsWithHousesQuery>,
     user: CurrentUser,

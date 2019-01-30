@@ -2,7 +2,7 @@ use accounts;
 use accounts::types::*;
 use db::Conn;
 use rocket_contrib::json::Json;
-use web::ApiResponse;
+use web::types::ApiResponse;
 
 /// Get all users
 #[get("/users")]

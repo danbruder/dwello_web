@@ -4,7 +4,7 @@ use deals;
 use deals::types::*;
 use rocket::request::Form;
 use rocket_contrib::json::Json;
-use web::ApiResponse;
+use web::types::ApiResponse;
 
 /// Get all deals
 #[get("/deals")]
