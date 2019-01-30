@@ -1,86 +1,36 @@
 //
 // web.rs
 //
+pub mod controllers;
 pub mod cors;
+pub mod error;
+pub mod guards;
+pub mod types;
 
-use rocket::response::content;
-use rocket::State;
-use rocket::Outcome;
-use rocket::http::Status;
-use rocket::request::{self, Request, FromRequest};
-use db::{Db,create_pool};
-use graphql::{Mutation,Query,Ctx,Schema};
-use accounts::types::User;
+use self::controllers::*;
+use db::{create_pool, Pool};
+use rocket::Rocket;
 
-
-pub struct ApiKey(pub String);
-
-fn is_valid(_key: &str) -> bool {
-    true
-}
-
-#[derive(Debug)]
-pub enum ApiKeyError {
-    BadCount,
-    Missing,
-    Invalid,
-}
-
-impl<'a, 'r> FromRequest<'a, 'r> for ApiKey {
-    type Error = ApiKeyError;
-
-    fn from_request(request: &'a Request<'r>) -> request::Outcome<Self, Self::Error> {
-        let keys: Vec<_> = request.headers().get("x-api-key").collect();
-        match keys.len() {
-            0 => Outcome::Failure((Status::BadRequest, ApiKeyError::Missing)),
-            1 if is_valid(keys[0]) => Outcome::Success(ApiKey(keys[0].to_string())),
-            1 => Outcome::Failure((Status::BadRequest, ApiKeyError::Invalid)),
-            _ => Outcome::Failure((Status::BadRequest, ApiKeyError::BadCount)),
-        }
-    }
-}
-
-
-#[get("/graphql/explorer")]
-fn graphiql() -> content::Html<String> {
-    juniper_rocket::graphiql_source("/graphql")
-}
-
-#[options("/graphql")]
-fn post_graphql_cors_handler() -> content::Plain<String> { 
-    content::Plain("".to_string())
-}
-
-#[post("/graphql", data = "<request>")]
-fn post_graphql_handler(
-    key: ApiKey,
-    db: State<Db>,
-    request: juniper_rocket::GraphQLRequest,
-    schema: State<Schema>,
-) -> juniper_rocket::GraphQLResponse {
-    let connection = db.pool.get().unwrap();
-    let user = User::from_key(connection, key);
-
-    // Create new context
-    let context = Ctx{
-        pool: db.pool.clone(),
-        user: user,
-    };
-
-    request.execute(&schema, &context)
+pub fn build() -> Rocket {
+    rocket::ignite()
+        .manage(Pool(create_pool()))
+        .mount(
+            "/",
+            routes![
+                cors::cors,
+                accounts::login,
+                accounts::register,
+                accounts::all_users,
+                accounts::user_by_id,
+                deal::create_deal,
+                deal::get_deals,
+                deal::update_deal,
+                deal::deals_with_houses,
+            ],
+        )
+        .attach(cors::CORS())
 }
 
 pub fn launch() {
-    rocket::ignite()
-        .manage(Db { pool: create_pool()})
-        .manage(Schema::new(
-                Query, 
-                Mutation
-        ))
-        .mount(
-            "/",
-            routes![graphiql, post_graphql_handler, post_graphql_cors_handler],
-        )
-        .attach(cors::CORS())
-        .launch();
+    build().launch();
 }

@@ -1,73 +1,10 @@
-//
-// models/graphql.rs
-//
-
-// A trait that the Validate derive will impl
-use validator::{Validate,ValidationErrors};
-use error;
-use schema::{users,sessions};
-use db::{PooledConnection};
-use diesel::prelude::*;
-use web::ApiKey;
-use diesel::pg::Pg;
 use diesel::deserialize::{self, FromSql};
-use diesel::sql_types::Text;
+use diesel::pg::Pg;
 use diesel::serialize::{self, IsNull, Output, ToSql};
+use diesel::sql_types::Text;
+use schema::{sessions, users};
 use std::io::Write;
-
-
-#[derive(GraphQLInputObject, Clone, Validate)]
-pub struct RegistrationInput {
-    #[validate(length(min = "1", max = "256", message="Cannot be blank"))]
-    pub name: String,
-    #[validate(email(message="Email is not valid"))]
-    pub email: String,
-    #[validate(length(min = "6", max = "30", message="Password length must be between 6 and 30"))]
-    pub password: String,
-}
-
-#[derive(GraphQLObject, Clone)]
-pub struct AuthPayload {
-    pub token: Option<String>,
-    pub user: Option<User>,
-    pub valid: bool,
-    pub validation_errors: Option<Vec<ValidationError>>
-}
-
-impl AuthPayload { 
-    pub fn from_validation_errors(e: ValidationErrors) -> AuthPayload { 
-        let errors = error::from_validation_errors(e);
-        AuthPayload{
-            user: None,
-            token: None,
-            valid: false,
-            validation_errors: Some(errors)
-        }
-    }
-    pub fn from_simple_error(key: &'static str, value: &'static str) -> AuthPayload { 
-        AuthPayload{
-            user: None,
-            token: None,
-            valid: false,
-            validation_errors: Some(vec![ValidationError{
-                field: key.to_string(),
-                message: value.to_string()
-            }])
-        }
-    }
-}
-
-#[derive(GraphQLInputObject, Clone)]
-pub struct LoginInput {
-    pub email: String,
-    pub password: String,
-}
-
-#[derive(GraphQLObject, Clone)]
-pub struct ValidationError { 
-    pub field: String,
-    pub message: String
-}
+use validator::Validate;
 
 #[derive(GraphQLObject, Clone, Queryable)]
 pub struct Session {
@@ -90,15 +27,23 @@ pub struct NewSession {
     pub updated: chrono::NaiveDateTime,
 }
 
-#[derive(Identifiable,GraphQLObject, Clone, Queryable)]
+#[derive(Serialize, Debug, Default, Identifiable, GraphQLObject, Clone, Queryable)]
 #[table_name = "users"]
 pub struct User {
     pub id: i32,
     pub name: String,
     pub email: String,
     #[graphql(skip)]
+    #[serde(skip_serializing)]
     pub password_hash: String,
-    pub roles: Vec<Role>
+    pub roles: Vec<Role>,
+}
+
+#[derive(Serialize, Debug)]
+pub enum CurrentUser {
+    Anonymous,
+    Authenticated(User),
+    Admin(User),
 }
 
 #[derive(Insertable)]
@@ -107,24 +52,24 @@ pub struct NewUser {
     pub name: String,
     pub email: String,
     pub password_hash: String,
-    pub roles: Vec<Role>
+    pub roles: Vec<Role>,
 }
 
-/* 
- * Deal status
- */
-#[derive(Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
+/*
+* Deal status
+*/
+#[derive(Serialize, Debug, Copy, Clone, GraphQLEnum, AsExpression, FromSqlRow)]
 #[sql_type = "Text"]
 pub enum Role {
     Anonymous,
-    Admin
+    Admin,
 }
 
 impl ToSql<Text, Pg> for Role {
     fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
-        match *self { 
+        match *self {
             Role::Anonymous => out.write_all(b"anonymous")?,
-            Role::Admin => out.write_all(b"admin")?
+            Role::Admin => out.write_all(b"admin")?,
         }
 
         Ok(IsNull::No)
@@ -141,24 +86,31 @@ impl FromSql<Text, Pg> for Role {
     }
 }
 
+#[derive(Deserialize, Validate)]
+pub struct LoginInput {
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+    pub email: String,
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+    pub password: String,
+}
 
-impl User { 
-    pub fn from_key(conn: PooledConnection, key: ApiKey) -> Option<User> {
-        use schema::users::dsl::*;
-        use schema::users::dsl::id;
-        use schema::sessions::dsl::*;
+/// Input used for registratoin
+#[derive(Deserialize, Clone, Validate)]
+pub struct RegistrationInput {
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+    pub name: String,
+    #[validate(email(message = "Email is not valid"))]
+    pub email: String,
+    #[validate(length(
+        min = "6",
+        max = "30",
+        message = "Password length must be between 6 and 30"
+    ))]
+    pub password: String,
+}
 
-        // Load session and user
-        let mut user = None;
-        let session = sessions 
-            .filter(token.eq(key.0))
-            .first::<Session>(&conn).ok();
-        if let Some(s) = session { 
-            user = users 
-                .filter(id.eq(s.uid))
-                .first::<User>(&conn).ok();
-        }
-
-        user
-    }
+#[derive(Serialize, Clone, Default)]
+pub struct AuthPayload {
+    pub token: Option<String>,
+    pub user: Option<User>,
 }
