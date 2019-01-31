@@ -12,10 +12,12 @@ import Browser exposing (Document)
 import Config exposing (Config)
 import Data.Deal as Deal exposing (DealStatus, DealWithHouse)
 import Data.User exposing (User)
+import Geocoding
 import Global exposing (Global)
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onBlur, onClick, onInput, onSubmit)
+import Http
 import Json.Encode as JE
 import RemoteData as RD exposing (RemoteData(..))
 import Request.Deal exposing (CreateDealInput, UpdateDealInput)
@@ -53,6 +55,12 @@ getDealsWithHouses config id =
     Request.Deal.getDealsWithHouses config id
         |> RD.sendRequest
         |> Cmd.map GotDealsWithHouses
+
+
+searchForAddress : Config -> String -> Cmd Msg
+searchForAddress config address =
+    Geocoding.requestForAddress config.googleApiKey address
+        |> Geocoding.send MyGeocoderResult
 
 
 
@@ -115,12 +123,20 @@ type Msg
     | Lat String
     | Lon String
     | CreateDeal
+    | MyGeocoderResult (Result Http.Error Geocoding.Response)
     | NoOp
 
 
 update : Global -> Msg -> Model -> ( Model, Cmd Msg, Global.Msg )
 update global msg model =
     case msg of
+        MyGeocoderResult result ->
+            let
+                _ =
+                    Debug.log (result |> Debug.toString)
+            in
+            ( model, Cmd.none, Global.none )
+
         GotUser response ->
             ( { model | response = response }, Cmd.none, Global.none )
 
@@ -208,15 +224,18 @@ update global msg model =
             , Global.none
             )
 
+        -- CreateDeal ->
+        --     let
+        --         input =
+        --             CreateDealInput model.id model.address model.lat model.lon
+        --
+        --         config =
+        --             Global.getConfig global
+        --     in
+        --     ( { model | dealResponse = Loading }, createDeal config input, Global.none )
+        --
         CreateDeal ->
-            let
-                input =
-                    CreateDealInput model.id model.address model.lat model.lon
-
-                config =
-                    Global.getConfig global
-            in
-            ( { model | dealResponse = Loading }, createDeal config input, Global.none )
+            ( model, searchForAddress (Global.getConfig global) "3557 Jamesfield Dr. Hudsonvile, MI 49426", Global.none )
 
         SaveStatus ->
             let
