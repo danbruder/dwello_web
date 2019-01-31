@@ -12,7 +12,7 @@ module Global exposing
 
 import Browser.Navigation exposing (Key)
 import Config exposing (Config)
-import Data.Session exposing (Session)
+import Data.Session exposing (Token)
 import Json.Encode as JE
 import Ports exposing (setToken)
 import Task
@@ -26,7 +26,6 @@ import Time exposing (Posix)
 type alias Model =
     { config : Config
     , time : Posix
-    , session : Maybe Session
     , key : Key
     }
 
@@ -40,7 +39,6 @@ init config key =
     ( Global
         { config = config
         , time = Time.millisToPosix 0
-        , session = Maybe.map (\token -> Session token) config.token
         , key = key
         }
     , Task.perform SetTime Time.now
@@ -63,7 +61,7 @@ toGlobal model =
 
 type Msg
     = SetTime Posix
-    | SetSession Session
+    | SetToken Token
     | NoOp
 
 
@@ -82,12 +80,20 @@ update msg (Global model) =
         SetTime time ->
             set { model | time = time }
 
-        SetSession session ->
+        SetToken token ->
             let
+                config =
+                    model.config
+
+                c =
+                    { config
+                        | token = token
+                    }
+
                 m =
-                    { model | session = Just session }
+                    { model | config = c }
             in
-            ( toGlobal m, saveToken session )
+            ( toGlobal m, saveToken token )
 
         NoOp ->
             set model
@@ -102,9 +108,9 @@ subscriptions global =
     Sub.none
 
 
-saveToken : Session -> Cmd Msg
-saveToken session =
-    setToken (JE.string session.token)
+saveToken : Token -> Cmd Msg
+saveToken token =
+    setToken (JE.string token)
 
 
 
@@ -116,19 +122,9 @@ getConfig =
     toModel >> .config
 
 
-getSession : Global -> Maybe Session
-getSession =
-    toModel >> .session
-
-
 getToken : Global -> String
-getToken global =
-    case getSession global of
-        Just session ->
-            session.token
-
-        Nothing ->
-            ""
+getToken =
+    getConfig >> .token
 
 
 getTime : Global -> Posix

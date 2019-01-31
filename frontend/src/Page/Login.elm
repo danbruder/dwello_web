@@ -86,7 +86,7 @@ update global msg model =
                 Success r ->
                     case r of
                         Data { token } ->
-                            ( { model | registration = response }, Cmd.none, SetSession (Session token) )
+                            ( { model | registration = response }, Cmd.none, SetToken token )
 
                         _ ->
                             ( { model | registration = response }, Cmd.none, Global.none )

@@ -11,7 +11,6 @@ import Api exposing (ApiData(..), ApiResponse)
 import Browser exposing (Document)
 import Config exposing (Config)
 import Data.Deal as Deal exposing (DealStatus, DealWithHouse)
-import Data.Session exposing (Token)
 import Data.User exposing (User)
 import Global exposing (Global)
 import Html exposing (..)
@@ -28,30 +27,30 @@ import Route
 -- COMMANDS
 
 
-getUser : Config -> Token -> String -> Cmd Msg
-getUser config token id =
-    Request.User.getUser config token id
+getUser : Config -> String -> Cmd Msg
+getUser config id =
+    Request.User.getUser config id
         |> RD.sendRequest
         |> Cmd.map GotUser
 
 
-createDeal : Config -> Token -> CreateDealInput -> Cmd Msg
-createDeal config token input =
-    Request.Deal.createDealWithHouse config token input
+createDeal : Config -> CreateDealInput -> Cmd Msg
+createDeal config input =
+    Request.Deal.createDealWithHouse config input
         |> RD.sendRequest
         |> Cmd.map DealCreated
 
 
-updateDeal : Config -> Token -> UpdateDealInput -> Int -> Cmd Msg
-updateDeal config token input id =
-    Request.Deal.updateDeal config token input id
+updateDeal : Config -> UpdateDealInput -> Int -> Cmd Msg
+updateDeal config input id =
+    Request.Deal.updateDeal config input id
         |> RD.sendRequest
         |> Cmd.map DealUpdated
 
 
-getDealsWithHouses : Config -> Token -> String -> Cmd Msg
-getDealsWithHouses config token id =
-    Request.Deal.getDealsWithHouses config token id
+getDealsWithHouses : Config -> String -> Cmd Msg
+getDealsWithHouses config id =
+    Request.Deal.getDealsWithHouses config id
         |> RD.sendRequest
         |> Cmd.map GotDealsWithHouses
 
@@ -79,9 +78,6 @@ init global id =
     let
         config =
             Global.getConfig global
-
-        token =
-            Global.getToken global
     in
     ( { id = id
       , response = Loading
@@ -95,8 +91,8 @@ init global id =
       , editingDeal = Nothing
       }
     , Cmd.batch
-        [ getUser config token id
-        , getDealsWithHouses config token id
+        [ getUser config id
+        , getDealsWithHouses config id
         ]
     , Global.none
     )
@@ -156,9 +152,6 @@ update global msg model =
                 config =
                     Global.getConfig global
 
-                token =
-                    Global.getToken global
-
                 newModel =
                     case response of
                         Success d ->
@@ -173,7 +166,7 @@ update global msg model =
                             { model | dealResponse = a }
             in
             ( newModel
-            , getDealsWithHouses config token model.id
+            , getDealsWithHouses config model.id
             , Global.none
             )
 
@@ -181,9 +174,6 @@ update global msg model =
             let
                 config =
                     Global.getConfig global
-
-                token =
-                    Global.getToken global
 
                 newModel =
                     case response of
@@ -225,19 +215,13 @@ update global msg model =
 
                 config =
                     Global.getConfig global
-
-                token =
-                    Global.getToken global
             in
-            ( { model | dealResponse = Loading }, createDeal config token input, Global.none )
+            ( { model | dealResponse = Loading }, createDeal config input, Global.none )
 
         SaveStatus ->
             let
                 config =
                     Global.getConfig global
-
-                token =
-                    Global.getToken global
 
                 cmd =
                     case model.editingDeal of
@@ -246,7 +230,7 @@ update global msg model =
                                 input =
                                     UpdateDealInput deal.status
                             in
-                            updateDeal config token input deal.id
+                            updateDeal config input deal.id
 
                         Nothing ->
                             Cmd.none

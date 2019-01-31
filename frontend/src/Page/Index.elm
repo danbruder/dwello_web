@@ -10,7 +10,7 @@ module Page.Index exposing
 import Api exposing (ApiData(..), ApiResponse)
 import Browser exposing (Document)
 import Config exposing (Config)
-import Data.Session exposing (Session, Token)
+import Data.Session exposing (Session)
 import Data.User exposing (User)
 import Global exposing (Global)
 import Html exposing (..)
@@ -23,9 +23,9 @@ import Route
 -- COMMANDS
 
 
-getUsers : Config -> Token -> Cmd Msg
-getUsers config token =
-    Request.User.getUsers config token
+getUsers : Config -> Cmd Msg
+getUsers config =
+    Request.User.getUsers config
         |> RD.sendRequest
         |> Cmd.map GetUsersResponse
 
@@ -42,7 +42,7 @@ type alias Model =
 init : Global -> ( Model, Cmd Msg, Global.Msg )
 init global =
     ( { users = Loading }
-    , getUsers (Global.getConfig global) (Global.getToken global)
+    , getUsers (Global.getConfig global)
     , Global.none
     )
 
