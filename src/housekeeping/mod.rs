@@ -27,6 +27,6 @@ pub fn run() -> Result<(), Error> {
             _ => Error::from(e),
         })?;
 
-    println!("{} created.", user.name);
+    println!("{} created, yay", user.name);
     Ok(())
 }
