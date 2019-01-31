@@ -1,20 +1,4 @@
-# Scout API
+# Dwello Web
 
-API Server for Scout App
+Web application backing Dwello
 
-## Getting started
-
-Be sure the rust toolchains are set up on your machine.
-
-Setup
-
-```bash
-rustup override set nightly
-diesel database reset
-```
-
-Run server
-
-```bash
-cargo run
-```
