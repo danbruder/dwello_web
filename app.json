@@ -1,0 +1,24 @@
+{
+  "addons": [
+    "heroku-postgresql"
+  ],
+  "buildpacks": [
+    {
+      "url": "https://buildpack-registry.s3.amazonaws.com/buildpacks/emk/rust.tgz"
+    },
+    {
+      "url": "https://github.com/sgrif/heroku-buildpack-diesel.git"
+    }
+  ],
+  "env": {
+  },
+  "formation": {
+    "web": {
+      "quantity": 1
+    }
+  },
+  "name": "dwello_web",
+  "scripts": {
+  },
+  "stack": "heroku-18"
+}
