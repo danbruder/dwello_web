@@ -20,10 +20,12 @@ extern crate serde_derive;
 mod accounts;
 mod db;
 mod deals;
+mod housekeeping;
 mod result;
 mod schema;
 mod web;
 
 fn main() {
+    let _ = housekeeping::run();
     web::launch();
 }

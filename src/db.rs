@@ -7,6 +7,7 @@ use rocket::request::{self, Request, FromRequest};
 use diesel::pg::PgConnection;
 use diesel::r2d2;
 use dotenv::dotenv;
+use diesel::prelude::*;
 use std::env;
 
 pub type ConnectionManager = r2d2::ConnectionManager<PgConnection>;
@@ -33,7 +34,6 @@ impl<'a, 'r> FromRequest<'a, 'r> for Conn {
     }
 }
 
-
 pub fn create_pool() -> ConnectionPool {
     dotenv().ok();
 
@@ -44,3 +44,12 @@ pub fn create_pool() -> ConnectionPool {
         .expect("Failed to create pool.")
 }
 
+/// Get single connection
+pub fn single_connection() -> PgConnection {
+    dotenv().ok();
+
+    let database_url = env::var("DATABASE_URL")
+        .expect("DATABASE_URL must be set");
+    PgConnection::establish(&database_url)
+        .expect(&format!("Error connecting to {}", database_url))
+}
