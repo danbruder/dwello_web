@@ -60,6 +60,7 @@ pub struct NewUser {
 #[sql_type = "Text"]
 pub enum Role {
     Anonymous,
+    Authenticated,
     Admin,
 }
 
@@ -67,6 +68,7 @@ impl ToSql<Text, Pg> for Role {
     fn to_sql<W: Write>(&self, out: &mut Output<W, Pg>) -> serialize::Result {
         match *self {
             Role::Anonymous => out.write_all(b"anonymous")?,
+            Role::Authenticated => out.write_all(b"authenticated")?,
             Role::Admin => out.write_all(b"admin")?,
         }
 
@@ -78,6 +80,7 @@ impl FromSql<Text, Pg> for Role {
     fn from_sql(bytes: Option<&[u8]>) -> deserialize::Result<Self> {
         match not_none!(bytes) {
             b"anonymous" => Ok(Role::Anonymous),
+            b"authenticated" => Ok(Role::Authenticated),
             b"admin" => Ok(Role::Admin),
             _ => Err("Unrecognized enum variant".into()),
         }

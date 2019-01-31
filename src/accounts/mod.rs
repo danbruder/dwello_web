@@ -172,7 +172,7 @@ pub fn register(conn: Conn, input: RegistrationInput) -> Response<AuthPayload> {
             name: input.name,
             email: input.email,
             password_hash: bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?,
-            roles: vec![Role::Admin],
+            roles: vec![Role::Authenticated],
         })
         .get_result::<User>(&conn)
         .map_err(|e| match e {
