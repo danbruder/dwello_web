@@ -13,11 +13,11 @@ import Json.Encode as JE
 import Url.Builder as UB
 
 
-register : Config -> Token -> Maybe JE.Value -> Request (ApiData AuthPayload)
+register : Config -> Token -> RegisterInput -> Request (ApiData AuthPayload)
 register config token input =
     UB.crossOrigin config.api [ "register" ] []
         |> HB.post
-        |> HB.withJsonBody (input |> Maybe.withDefault JE.null)
+        |> HB.withJsonBody (input |> encodeRegisterInput)
         |> HB.withExpect (Http.expectJson decode)
         |> HB.withHeader "X-API-KEY" token
         |> HB.toRequest

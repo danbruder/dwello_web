@@ -1,4 +1,4 @@
-module Request.Deal exposing (CreateDealInput, UpdateDealInput, createDealWithHouse, encodeCreateDealInput, encodeUpdateDealInput, getDealsWithHouses, updateDeal)
+module Request.Deal exposing (CreateDealInput, UpdateDealInput, createDealWithHouse, getDealsWithHouses, updateDeal)
 
 import Api exposing (ApiData, decodeApiResponse)
 import Config exposing (Config)
@@ -13,14 +13,8 @@ import Json.Encode as JE
 import Url.Builder as UB
 
 
-createDealWithHouse : Config -> Token -> Maybe JE.Value -> Request (ApiData DealWithHouse)
-createDealWithHouse config token input =
-    UB.crossOrigin config.api [ "deals" ] []
-        |> HB.post
-        |> HB.withJsonBody (input |> Maybe.withDefault JE.null)
-        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDealWithHouse))
-        |> HB.withHeader "X-API-KEY" token
-        |> HB.toRequest
+
+-- Types
 
 
 type alias CreateDealInput =
@@ -36,17 +30,41 @@ type alias UpdateDealInput =
     }
 
 
-updateDeal : Config -> Token -> Maybe JE.Value -> Int -> Request (ApiData DealWithHouse)
-updateDeal config token input id =
-    UB.crossOrigin config.api [ "deals", id |> String.fromInt, "update" ] []
+
+-- Requests
+
+
+createDealWithHouse : Config -> Token -> CreateDealInput -> Request (ApiData DealWithHouse)
+createDealWithHouse config token input =
+    UB.crossOrigin config.api [ "deals" ] []
         |> HB.post
-        |> HB.withJsonBody (input |> Maybe.withDefault JE.null)
+        |> HB.withJsonBody (input |> encodeCreateDealInput)
         |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDealWithHouse))
         |> HB.withHeader "X-API-KEY" token
         |> HB.toRequest
 
 
+updateDeal : Config -> Token -> UpdateDealInput -> Int -> Request (ApiData DealWithHouse)
+updateDeal config token input id =
+    UB.crossOrigin config.api [ "deals", id |> String.fromInt, "update" ] []
+        |> HB.post
+        |> HB.withJsonBody (input |> encodeUpdateDealInput)
+        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDealWithHouse))
+        |> HB.withHeader "X-API-KEY" token
+        |> HB.toRequest
 
+
+getDealsWithHouses : Config -> Token -> String -> Request (ApiData (List DealWithHouse))
+getDealsWithHouses config token id =
+    UB.crossOrigin config.api [ "views", "deals-with-houses" ] [ UB.string "buyer_id" id ]
+        |> HB.get
+        |> HB.withExpect (Http.expectJson (decodeApiResponse (JD.list decodeDealWithHouse)))
+        |> HB.withHeader "X-API-KEY" token
+        |> HB.toRequest
+
+
+
+-- Encoders
 -- TODO: FIX BUYER ID, add protections
 
 
@@ -63,12 +81,3 @@ encodeCreateDealInput v =
 encodeUpdateDealInput : UpdateDealInput -> JE.Value
 encodeUpdateDealInput v =
     JE.object [ ( "status", JE.string (v.status |> Deal.statusToString) ) ]
-
-
-getDealsWithHouses : Config -> Token -> String -> Request (ApiData (List DealWithHouse))
-getDealsWithHouses config token id =
-    UB.crossOrigin config.api [ "views", "deals-with-houses" ] [ UB.string "buyer_id" id ]
-        |> HB.get
-        |> HB.withExpect (Http.expectJson (decodeApiResponse (JD.list decodeDealWithHouse)))
-        |> HB.withHeader "X-API-KEY" token
-        |> HB.toRequest

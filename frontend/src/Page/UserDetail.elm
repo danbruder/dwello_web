@@ -19,7 +19,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onBlur, onClick, onInput, onSubmit)
 import Json.Encode as JE
 import RemoteData as RD exposing (RemoteData(..))
-import Request.Deal exposing (CreateDealInput, UpdateDealInput, encodeCreateDealInput, encodeUpdateDealInput)
+import Request.Deal exposing (CreateDealInput, UpdateDealInput)
 import Request.User
 import Route
 
@@ -35,14 +35,14 @@ getUser config token id =
         |> Cmd.map GotUser
 
 
-createDeal : Config -> Token -> Maybe JE.Value -> Cmd Msg
+createDeal : Config -> Token -> CreateDealInput -> Cmd Msg
 createDeal config token input =
     Request.Deal.createDealWithHouse config token input
         |> RD.sendRequest
         |> Cmd.map DealCreated
 
 
-updateDeal : Config -> Token -> Maybe JE.Value -> Int -> Cmd Msg
+updateDeal : Config -> Token -> UpdateDealInput -> Int -> Cmd Msg
 updateDeal config token input id =
     Request.Deal.updateDeal config token input id
         |> RD.sendRequest
@@ -221,7 +221,7 @@ update global msg model =
         CreateDeal ->
             let
                 input =
-                    CreateDealInput model.id model.address model.lat model.lon |> encodeCreateDealInput
+                    CreateDealInput model.id model.address model.lat model.lon
 
                 config =
                     Global.getConfig global
@@ -229,7 +229,7 @@ update global msg model =
                 token =
                     Global.getToken global
             in
-            ( { model | dealResponse = Loading }, createDeal config token (Just input), Global.none )
+            ( { model | dealResponse = Loading }, createDeal config token input, Global.none )
 
         SaveStatus ->
             let
@@ -244,9 +244,9 @@ update global msg model =
                         Just deal ->
                             let
                                 input =
-                                    UpdateDealInput deal.status |> encodeUpdateDealInput
+                                    UpdateDealInput deal.status
                             in
-                            updateDeal config token (Just input) deal.id
+                            updateDeal config token input deal.id
 
                         Nothing ->
                             Cmd.none
