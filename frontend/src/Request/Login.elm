@@ -13,25 +13,32 @@ import Json.Encode as JE
 import Url.Builder as UB
 
 
-login : Config -> Token -> Maybe JE.Value -> Request (ApiData AuthPayload)
-login config token input =
-    UB.crossOrigin config.api [ "login" ] []
-        |> HB.post
-        |> HB.withJsonBody (input |> Maybe.withDefault JE.null)
-        |> HB.withExpect (Http.expectJson decode)
-        |> HB.withHeader "X-API-KEY" token
-        |> HB.toRequest
 
-
-decode : JD.Decoder (ApiData AuthPayload)
-decode =
-    decodeApiResponse decodeAuthPayload
+-- types
 
 
 type alias LoginInput =
     { email : String
     , password : String
     }
+
+
+
+-- Requests
+
+
+login : Config -> Token -> LoginInput -> Request (ApiData AuthPayload)
+login config token input =
+    UB.crossOrigin config.api [ "login" ] []
+        |> HB.post
+        |> HB.withJsonBody (input |> encodeLoginInput)
+        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeAuthPayload))
+        |> HB.withHeader "X-API-KEY" token
+        |> HB.toRequest
+
+
+
+-- Encoders
 
 
 encodeLoginInput : LoginInput -> JE.Value

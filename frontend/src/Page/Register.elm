@@ -20,7 +20,7 @@ import Html.Attributes exposing (..)
 import Html.Events exposing (onInput, onSubmit)
 import Json.Encode as JE
 import RemoteData as RD exposing (RemoteData(..))
-import Request.Register exposing (RegisterInput, encodeRegisterInput)
+import Request.Register exposing (RegisterInput)
 import Route
 
 
@@ -28,8 +28,8 @@ import Route
 -- COMMANDS
 
 
-login : Config -> Token -> Maybe JE.Value -> Cmd Msg
-login config token input =
+register : Config -> Token -> RegisterInput -> Cmd Msg
+register config token input =
     Request.Register.register config token input
         |> RD.sendRequest
         |> Cmd.map GotRegister
@@ -73,7 +73,7 @@ update global msg model =
         SubmitForm ->
             let
                 input =
-                    RegisterInput model.email model.password model.name |> encodeRegisterInput
+                    RegisterInput model.email model.password model.name
 
                 config =
                     Global.getConfig global
@@ -81,7 +81,7 @@ update global msg model =
                 token =
                     Global.getToken global
             in
-            ( { model | registration = Loading }, login config token (Just input), Global.none )
+            ( { model | registration = Loading }, register config token input, Global.none )
 
         GotRegister response ->
             case response of

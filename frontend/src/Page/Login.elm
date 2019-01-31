@@ -28,7 +28,7 @@ import Route
 -- COMMANDS
 
 
-login : Config -> Token -> Maybe JE.Value -> Cmd Msg
+login : Config -> Token -> LoginInput -> Cmd Msg
 login config token input =
     Request.Login.login config token input
         |> RD.sendRequest
@@ -71,7 +71,7 @@ update global msg model =
         SubmitForm ->
             let
                 input =
-                    LoginInput model.email model.password |> encodeLoginInput
+                    LoginInput model.email model.password
 
                 config =
                     Global.getConfig global
@@ -79,7 +79,7 @@ update global msg model =
                 token =
                     Global.getToken global
             in
-            ( { model | registration = Loading }, login config token (Just input), Global.none )
+            ( { model | registration = Loading }, login config token input, Global.none )
 
         GotLogin response ->
             case response of
