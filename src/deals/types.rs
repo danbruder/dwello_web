@@ -75,13 +75,14 @@ pub struct UpdateDeal {
     pub status: Option<DealStatus>,
 }
 
-#[derive(Serialize, Identifiable, Clone, Queryable)]
+#[derive(Serialize, Identifiable, Clone, Queryable, Debug)]
 #[table_name = "houses"]
 pub struct House {
     pub id: i32,
     pub address: String,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub google_address: Option<serde_json::Value>,
 }
 
 #[derive(Insertable)]
@@ -107,7 +108,7 @@ pub struct CreateDealAndHouseInput {
     pub google_address: Option<GoogleAddress>,
 }
 
-#[derive(Deserialize, Serialize, Validate)]
+#[derive(Deserialize, Serialize, Validate, Debug)]
 pub struct GoogleAddress {
     pub address_components: Vec<AddressComponents>,
     #[validate(length(min = "0", max = "500", message = "Too long"))]
@@ -118,7 +119,7 @@ pub struct GoogleAddress {
     pub types: Vec<String>,
 }
 
-#[derive(Deserialize, Serialize, Validate)]
+#[derive(Deserialize, Serialize, Validate, Debug)]
 pub struct Geometry {
     pub location: Location,
     #[validate(length(min = "0", max = "500", message = "Too long"))]
@@ -126,19 +127,19 @@ pub struct Geometry {
     pub viewport: Viewport,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Viewport {
     pub northeast: Location,
     pub southwest: Location,
 }
 
-#[derive(Deserialize, Serialize)]
+#[derive(Deserialize, Serialize, Debug)]
 pub struct Location {
     pub latitude: f32,
     pub longitude: f32,
 }
 
-#[derive(Deserialize, Serialize, Validate)]
+#[derive(Deserialize, Serialize, Validate, Debug)]
 pub struct AddressComponents {
     #[validate(length(min = "0", max = "500", message = "Too long"))]
     long_name: String,
@@ -148,7 +149,7 @@ pub struct AddressComponents {
     types: Vec<String>,
 }
 
-#[derive(FromForm, Deserialize)]
+#[derive(FromForm, Deserialize, Debug)]
 pub struct DealsQuery {
     pub buyer_id: Option<i32>,
 }
