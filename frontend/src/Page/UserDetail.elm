@@ -10,7 +10,7 @@ module Page.UserDetail exposing
 import Api exposing (ApiData(..), ApiResponse)
 import Browser exposing (Document)
 import Config exposing (Config)
-import Data.Deal as Deal exposing (DealStatus, DealWithHouse)
+import Data.Deal as Deal exposing (Deal, DealStatus)
 import Data.User exposing (User)
 import Geocoding
 import Global exposing (Global)
@@ -38,7 +38,7 @@ getUser config id =
 
 createDeal : Config -> CreateDealInput -> Cmd Msg
 createDeal config input =
-    Request.Deal.createDealWithHouse config input
+    Request.Deal.createDeal config input
         |> RD.sendRequest
         |> Cmd.map DealCreated
 
@@ -50,11 +50,11 @@ updateDeal config input id =
         |> Cmd.map DealUpdated
 
 
-getDealsWithHouses : Config -> String -> Cmd Msg
-getDealsWithHouses config id =
-    Request.Deal.getDealsWithHouses config id
+getDeals : Config -> String -> Cmd Msg
+getDeals config id =
+    Request.Deal.getDeals config id
         |> RD.sendRequest
-        |> Cmd.map GotDealsWithHouses
+        |> Cmd.map GotDeals
 
 
 searchForAddress : Config -> String -> Cmd Msg
@@ -70,14 +70,12 @@ searchForAddress config address =
 type alias Model =
     { id : String
     , response : ApiResponse User
-    , dealResponse : ApiResponse DealWithHouse
-    , dealsWithHousesResponse : ApiResponse (List DealWithHouse)
-    , updateDealResponse : ApiResponse DealWithHouse
-    , dealList : List DealWithHouse
+    , dealResponse : ApiResponse Deal
+    , dealsResponse : ApiResponse (List Deal)
+    , updateDealResponse : ApiResponse Deal
+    , dealList : List Deal
     , address : String
-    , lat : String
-    , lon : String
-    , editingDeal : Maybe DealWithHouse
+    , editingDeal : Maybe Deal
     }
 
 
@@ -90,17 +88,15 @@ init global id =
     ( { id = id
       , response = Loading
       , dealResponse = NotAsked
-      , dealsWithHousesResponse = Loading
+      , dealsResponse = Loading
       , updateDealResponse = NotAsked
       , dealList = []
       , address = ""
-      , lat = ""
-      , lon = ""
       , editingDeal = Nothing
       }
     , Cmd.batch
         [ getUser config id
-        , getDealsWithHouses config id
+        , getDeals config id
         ]
     , Global.none
     )
@@ -112,16 +108,14 @@ init global id =
 
 type Msg
     = GotUser (ApiResponse User)
-    | DealCreated (ApiResponse DealWithHouse)
-    | DealUpdated (ApiResponse DealWithHouse)
-    | GotDealsWithHouses (ApiResponse (List DealWithHouse))
-    | StartEditing DealWithHouse
+    | DealCreated (ApiResponse Deal)
+    | DealUpdated (ApiResponse Deal)
+    | GotDeals (ApiResponse (List Deal))
+    | StartEditing Deal
     | StopEditing
     | Address String
     | Status String
     | SaveStatus
-    | Lat String
-    | Lon String
     | CreateDeal
     | MyGeocoderResult (Result Http.Error Geocoding.Response)
     | NoOp
@@ -140,7 +134,7 @@ update global msg model =
         GotUser response ->
             ( { model | response = response }, Cmd.none, Global.none )
 
-        GotDealsWithHouses response ->
+        GotDeals response ->
             let
                 dealList =
                     case response of
@@ -155,7 +149,7 @@ update global msg model =
                         _ ->
                             []
             in
-            ( { model | dealsWithHousesResponse = response, dealList = dealList }, Cmd.none, Global.none )
+            ( { model | dealsResponse = response, dealList = dealList }, Cmd.none, Global.none )
 
         StartEditing deal ->
             ( { model | editingDeal = Just deal }, Cmd.none, Global.none )
@@ -173,7 +167,7 @@ update global msg model =
                         Success d ->
                             case d of
                                 Data data ->
-                                    { model | dealResponse = response, address = "", lat = "", lon = "" }
+                                    { model | dealResponse = response, address = "" }
 
                                 _ ->
                                     { model | dealResponse = response }
@@ -182,7 +176,7 @@ update global msg model =
                             { model | dealResponse = a }
             in
             ( newModel
-            , getDealsWithHouses config model.id
+            , getDeals config model.id
             , Global.none
             )
 
@@ -224,19 +218,18 @@ update global msg model =
             , Global.none
             )
 
-        -- CreateDeal ->
-        --     let
-        --         input =
-        --             CreateDealInput model.id model.address model.lat model.lon
-        --
-        --         config =
-        --             Global.getConfig global
-        --     in
-        --     ( { model | dealResponse = Loading }, createDeal config input, Global.none )
-        --
         CreateDeal ->
-            ( model, searchForAddress (Global.getConfig global) "3557 Jamesfield Dr. Hudsonvile, MI 49426", Global.none )
+            let
+                input =
+                    CreateDealInput model.id model.address
 
+                config =
+                    Global.getConfig global
+            in
+            ( { model | dealResponse = Loading }, createDeal config input, Global.none )
+
+        -- CreateDeal ->
+        --     ( model, searchForAddress (Global.getConfig global) "3557 Jamesfield Dr. Hudsonvile, MI 49426", Global.none )
         SaveStatus ->
             let
                 config =
@@ -262,12 +255,6 @@ update global msg model =
         -- New Deal form
         Address a ->
             ( { model | address = a }, Cmd.none, Global.none )
-
-        Lat a ->
-            ( { model | lat = a }, Cmd.none, Global.none )
-
-        Lon a ->
-            ( { model | lon = a }, Cmd.none, Global.none )
 
         -- Edit deal values
         Status a ->
@@ -310,7 +297,7 @@ view global model =
 
 
 viewContent model =
-    case ( model.response, model.dealsWithHousesResponse ) of
+    case ( model.response, model.dealsResponse ) of
         ( Loading, _ ) ->
             viewLoading
 
@@ -353,7 +340,7 @@ viewDealList model =
         ]
 
 
-viewDeal : Model -> DealWithHouse -> Html Msg
+viewDeal : Model -> Deal -> Html Msg
 viewDeal model deal =
     let
         targetDeal =
@@ -385,7 +372,7 @@ viewDeal model deal =
 
         dealDetail =
             div []
-                [ div [] [ deal.address |> text ]
+                [ div [] [ deal.title |> text ]
                 , div [] [ deal.access_code |> text ]
                 , div [ onClick (StartEditing targetDeal) ] [ status ]
                 ]
@@ -398,8 +385,6 @@ viewDealForm : Model -> Html Msg
 viewDealForm model =
     Html.form [ onSubmit CreateDeal ]
         [ viewInput model "text" "Address" model.address "address" Address
-        , viewInput model "text" "Lat" model.lat "lat" Lat
-        , viewInput model "text" "Lon" model.lon "lon" Lon
         , input [ type_ "submit", value "Submit" ] []
         ]
 

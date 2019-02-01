@@ -54,6 +54,7 @@ pub struct Deal {
     pub status: DealStatus,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub title: String,
 }
 
 #[derive(Insertable)]
@@ -66,6 +67,7 @@ pub struct NewDeal {
     pub status: DealStatus,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub title: String,
 }
 
 #[derive(Deserialize)]
@@ -78,8 +80,6 @@ pub struct UpdateDeal {
 pub struct House {
     pub id: i32,
     pub address: String,
-    pub lat: String,
-    pub lon: String,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
 }
@@ -88,8 +88,6 @@ pub struct House {
 #[table_name = "houses"]
 pub struct NewHouse {
     pub address: String,
-    pub lat: String,
-    pub lon: String,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
 }
@@ -97,36 +95,16 @@ pub struct NewHouse {
 #[derive(Clone)]
 pub struct HouseInput {
     pub address: String,
-    pub lat: String,
-    pub lon: String,
 }
 
-#[derive(Serialize, Queryable)]
-pub struct DealWithHouse {
-    pub id: i32,
-    pub buyer_id: Option<i32>,
-    pub seller_id: Option<i32>,
-    pub house_id: Option<i32>,
-    pub access_code: String,
-    pub status: DealStatus,
-    pub address: String,
-    pub lat: String,
-    pub lon: String,
-}
-
-/// Create deal and house input data
 #[derive(Deserialize, Validate)]
 pub struct CreateDealAndHouseInput {
     pub buyer_id: i32,
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
     pub address: String,
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub lat: String,
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub lon: String,
 }
 
-#[derive(FromForm)]
-pub struct ViewDealsWithHousesQuery {
+#[derive(FromForm, Deserialize)]
+pub struct DealsQuery {
     pub buyer_id: Option<i32>,
 }

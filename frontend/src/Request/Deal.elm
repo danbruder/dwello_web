@@ -1,8 +1,8 @@
-module Request.Deal exposing (CreateDealInput, UpdateDealInput, createDealWithHouse, getDealsWithHouses, updateDeal)
+module Request.Deal exposing (CreateDealInput, UpdateDealInput, createDeal, getDeals, updateDeal)
 
 import Api exposing (ApiData, decodeApiResponse)
 import Config exposing (Config)
-import Data.Deal as Deal exposing (DealStatus, DealWithHouse, decodeDealWithHouse)
+import Data.Deal as Deal exposing (Deal, DealStatus, decodeDeal)
 import Data.Session exposing (Token)
 import Data.User as User exposing (User)
 import Http exposing (Request)
@@ -20,8 +20,6 @@ import Url.Builder as UB
 type alias CreateDealInput =
     { buyer_id : String
     , address : String
-    , lat : String
-    , lon : String
     }
 
 
@@ -34,31 +32,31 @@ type alias UpdateDealInput =
 -- Requests
 
 
-createDealWithHouse : Config -> CreateDealInput -> Request (ApiData DealWithHouse)
-createDealWithHouse config input =
+createDeal : Config -> CreateDealInput -> Request (ApiData Deal)
+createDeal config input =
     UB.crossOrigin config.api [ "deals" ] []
         |> HB.post
         |> HB.withJsonBody (input |> encodeCreateDealInput)
-        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDealWithHouse))
+        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDeal))
         |> HB.withHeader "X-API-KEY" config.token
         |> HB.toRequest
 
 
-updateDeal : Config -> UpdateDealInput -> Int -> Request (ApiData DealWithHouse)
+updateDeal : Config -> UpdateDealInput -> Int -> Request (ApiData Deal)
 updateDeal config input id =
     UB.crossOrigin config.api [ "deals", id |> String.fromInt, "update" ] []
         |> HB.post
         |> HB.withJsonBody (input |> encodeUpdateDealInput)
-        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDealWithHouse))
+        |> HB.withExpect (Http.expectJson (decodeApiResponse decodeDeal))
         |> HB.withHeader "X-API-KEY" config.token
         |> HB.toRequest
 
 
-getDealsWithHouses : Config -> String -> Request (ApiData (List DealWithHouse))
-getDealsWithHouses config id =
-    UB.crossOrigin config.api [ "views", "deals-with-houses" ] [ UB.string "buyer_id" id ]
+getDeals : Config -> String -> Request (ApiData (List Deal))
+getDeals config id =
+    UB.crossOrigin config.api [ "deals" ] [ UB.string "buyer_id" id ]
         |> HB.get
-        |> HB.withExpect (Http.expectJson (decodeApiResponse (JD.list decodeDealWithHouse)))
+        |> HB.withExpect (Http.expectJson (decodeApiResponse (JD.list decodeDeal)))
         |> HB.withHeader "X-API-KEY" config.token
         |> HB.toRequest
 
@@ -73,8 +71,6 @@ encodeCreateDealInput v =
     JE.object
         [ ( "buyer_id", JE.int (String.toInt v.buyer_id |> Maybe.withDefault 0) )
         , ( "address", JE.string v.address )
-        , ( "lat", JE.string v.lat )
-        , ( "lon", JE.string v.lon )
         ]
 
 

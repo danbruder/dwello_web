@@ -25,7 +25,7 @@ pub fn build() -> Rocket {
                 deal::create_deal,
                 deal::get_deals,
                 deal::update_deal,
-                deal::deals_with_houses,
+                // deal::deals_with_houses,
             ],
         )
         .attach(cors::CORS())
