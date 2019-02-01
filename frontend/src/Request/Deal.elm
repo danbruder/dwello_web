@@ -5,6 +5,7 @@ import Config exposing (Config)
 import Data.Deal as Deal exposing (Deal, DealStatus, decodeDeal)
 import Data.Session exposing (Token)
 import Data.User as User exposing (User)
+import Geocoding exposing (GeocodingResult)
 import Http exposing (Request)
 import HttpBuilder as HB
 import Json.Decode as JD
@@ -19,7 +20,7 @@ import Url.Builder as UB
 
 type alias CreateDealInput =
     { buyer_id : String
-    , address : String
+    , address : GeocodingResult
     }
 
 
@@ -70,7 +71,7 @@ encodeCreateDealInput : CreateDealInput -> JE.Value
 encodeCreateDealInput v =
     JE.object
         [ ( "buyer_id", JE.int (String.toInt v.buyer_id |> Maybe.withDefault 0) )
-        , ( "address", JE.string v.address )
+        , ( "address", JE.object v.address )
         ]
 
 

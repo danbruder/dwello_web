@@ -18,6 +18,7 @@ table! {
         address -> Varchar,
         created -> Timestamp,
         updated -> Timestamp,
+        google_address -> Nullable<Jsonb>,
     }
 }
 

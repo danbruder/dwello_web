@@ -5,8 +5,8 @@ pub mod types;
 
 use accounts::types::{CurrentUser, CurrentUser::*};
 use db::Conn;
+use deals::types::Deal;
 use deals::types::*;
-use deals::types::{Deal, House};
 use diesel::prelude::*;
 use result::{Error, Payload, Response};
 use validator::Validate;
@@ -49,8 +49,7 @@ pub fn create_deal(
     input: CreateDealAndHouseInput,
 ) -> Response<Deal> {
     use schema::deals::dsl::*;
-    //use schema::houses::dsl::id;
-    use schema::houses::dsl::*;
+    use schema::houses;
 
     // Currently only admins can create deals
     let _ = match user {
@@ -58,30 +57,33 @@ pub fn create_deal(
         _ => return Err(Error::AccessDenied),
     };
     let Conn(conn) = conn;
-    let formatted_address = input.address.trim().to_uppercase();
+    let formatted_address = input.address.trim().to_owned();
 
     input.validate()?;
 
     // Look for a house with address
-    let house = match houses
-        .filter(address.eq(&formatted_address))
-        .first::<House>(&conn)
+    let hid = match houses::table
+        .select(houses::dsl::id)
+        .filter(houses::dsl::address.eq(&formatted_address))
+        .first::<i32>(&conn)
     {
         Ok(house) => house,
-        Err(diesel::NotFound) => diesel::insert_into(houses)
+        Err(diesel::NotFound) => diesel::insert_into(houses::table)
             .values(&NewHouse {
                 address: formatted_address.clone(),
                 created: chrono::Utc::now().naive_utc(),
                 updated: chrono::Utc::now().naive_utc(),
+                google_address: Some(serde_json::to_value(input.google_address)?),
             })
-            .get_result::<House>(&conn)?,
+            .returning(houses::dsl::id)
+            .get_result::<i32>(&conn)?,
         Err(e) => return Err(Error::from(e)),
     };
 
     // Create a deal and link it to the house and buyer
     // Make sure one doesn't exist already
     let deal = match deals
-        .filter(house_id.eq(&house.id))
+        .filter(house_id.eq(&hid))
         .filter(buyer_id.eq(&input.buyer_id))
         .first::<Deal>(&conn)
     {
@@ -96,7 +98,7 @@ pub fn create_deal(
             .values(&NewDeal {
                 buyer_id: Some(input.buyer_id),
                 seller_id: None,
-                house_id: Some(house.id),
+                house_id: Some(hid),
                 access_code: "CODE".to_string(),
                 status: DealStatus::Initialized,
                 created: chrono::Utc::now().naive_utc(),

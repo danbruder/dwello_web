@@ -90,11 +90,13 @@ pub struct NewHouse {
     pub address: String,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub google_address: Option<serde_json::Value>,
 }
 
 #[derive(Clone)]
 pub struct HouseInput {
     pub address: String,
+    pub google_address: Option<serde_json::Value>,
 }
 
 #[derive(Deserialize, Validate)]
@@ -102,6 +104,57 @@ pub struct CreateDealAndHouseInput {
     pub buyer_id: i32,
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
     pub address: String,
+    pub google_address: Option<GoogleAddress>,
+}
+
+#[derive(Deserialize, Serialize, Validate)]
+pub struct GoogleAddress {
+    pub address_components: Vec<AddressComponents>,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub formatted_address: String,
+    pub geometry: Geometry,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub place_id: String,
+    pub plus_code: PlusCode,
+    pub types: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Validate)]
+pub struct PlusCode {
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub compound_code: String,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub global_code: String,
+}
+
+#[derive(Deserialize, Serialize, Validate)]
+pub struct Geometry {
+    pub location: Location,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub location_type: String,
+    pub viewport: Viewport,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Viewport {
+    pub northeast: Location,
+    pub southwest: Location,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Location {
+    pub lat: i32,
+    pub lng: i32,
+}
+
+#[derive(Deserialize, Serialize, Validate)]
+pub struct AddressComponents {
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    long_name: String,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    short_name: String,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    types: Vec<String>,
 }
 
 #[derive(FromForm, Deserialize)]
