@@ -5,7 +5,7 @@ authors = ["dan@debassociates.com"]
 
 [dependencies]
 rocket = "0.4.0"
-diesel = { version = "1.0.0", features = ["postgres", "r2d2", "chrono"] }
+diesel = { version = "1.0.0", features = ["postgres", "r2d2", "chrono", "serde_json"] }
 dotenv = "0.9.0"
 bcrypt = "0.2"
 serde = "1.0"

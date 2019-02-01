@@ -34,6 +34,7 @@ pub enum Error {
     BcryptError(bcrypt::BcryptError),
     DieselError(diesel::result::Error),
     InvalidInput(validator::ValidationErrors),
+    JsonError(serde_json::Error),
     ServiceUnavailable,
     ApiKeyError,
     AccessDenied,
@@ -48,6 +49,12 @@ impl From<bcrypt::BcryptError> for Error {
 impl From<diesel::result::Error> for Error {
     fn from(error: diesel::result::Error) -> Self {
         DieselError(error)
+    }
+}
+
+impl From<serde_json::Error> for Error {
+    fn from(error: serde_json::Error) -> Self {
+        JsonError(error)
     }
 }
 

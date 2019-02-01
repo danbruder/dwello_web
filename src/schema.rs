@@ -8,6 +8,7 @@ table! {
         status -> Varchar,
         created -> Timestamp,
         updated -> Timestamp,
+        title -> Varchar,
     }
 }
 
@@ -15,10 +16,9 @@ table! {
     houses (id) {
         id -> Int4,
         address -> Varchar,
-        lat -> Varchar,
-        lon -> Varchar,
         created -> Timestamp,
         updated -> Timestamp,
+        google_address -> Nullable<Jsonb>,
     }
 }
 

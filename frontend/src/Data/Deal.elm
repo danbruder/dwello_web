@@ -1,19 +1,17 @@
-module Data.Deal exposing (DealStatus, DealWithHouse, decodeDealWithHouse, statusToString, stringToStatus)
+module Data.Deal exposing (Deal, DealStatus, decodeDeal, statusToString, stringToStatus)
 
 import Json.Decode as JD exposing (Decoder)
 import Json.Decode.Pipeline as JDP
 
 
-type alias DealWithHouse =
+type alias Deal =
     { id : Int
     , buyer_id : Maybe Int
     , seller_id : Maybe Int
     , house_id : Maybe Int
     , access_code : String
     , status : DealStatus
-    , address : String
-    , lat : String
-    , lon : String
+    , title : String
     }
 
 
@@ -45,18 +43,16 @@ stringToStatus string =
             Initialized
 
 
-decodeDealWithHouse : JD.Decoder DealWithHouse
-decodeDealWithHouse =
-    JD.succeed DealWithHouse
+decodeDeal : JD.Decoder Deal
+decodeDeal =
+    JD.succeed Deal
         |> JDP.required "id" JD.int
         |> JDP.required "buyer_id" (JD.nullable JD.int)
         |> JDP.required "seller_id" (JD.nullable JD.int)
         |> JDP.required "house_id" (JD.nullable JD.int)
         |> JDP.required "access_code" JD.string
         |> JDP.required "status" decodeDealStatus
-        |> JDP.required "address" JD.string
-        |> JDP.required "lat" JD.string
-        |> JDP.required "lon" JD.string
+        |> JDP.required "title" JD.string
 
 
 decodeDealStatus : JD.Decoder DealStatus

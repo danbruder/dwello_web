@@ -54,6 +54,7 @@ pub struct Deal {
     pub status: DealStatus,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub title: String,
 }
 
 #[derive(Insertable)]
@@ -66,6 +67,7 @@ pub struct NewDeal {
     pub status: DealStatus,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub title: String,
 }
 
 #[derive(Deserialize)]
@@ -78,8 +80,6 @@ pub struct UpdateDeal {
 pub struct House {
     pub id: i32,
     pub address: String,
-    pub lat: String,
-    pub lon: String,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
 }
@@ -88,45 +88,67 @@ pub struct House {
 #[table_name = "houses"]
 pub struct NewHouse {
     pub address: String,
-    pub lat: String,
-    pub lon: String,
     pub created: chrono::NaiveDateTime,
     pub updated: chrono::NaiveDateTime,
+    pub google_address: Option<serde_json::Value>,
 }
 
 #[derive(Clone)]
 pub struct HouseInput {
     pub address: String,
-    pub lat: String,
-    pub lon: String,
+    pub google_address: Option<serde_json::Value>,
 }
 
-#[derive(Serialize, Queryable)]
-pub struct DealWithHouse {
-    pub id: i32,
-    pub buyer_id: Option<i32>,
-    pub seller_id: Option<i32>,
-    pub house_id: Option<i32>,
-    pub access_code: String,
-    pub status: DealStatus,
-    pub address: String,
-    pub lat: String,
-    pub lon: String,
-}
-
-/// Create deal and house input data
 #[derive(Deserialize, Validate)]
 pub struct CreateDealAndHouseInput {
     pub buyer_id: i32,
     #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
     pub address: String,
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub lat: String,
-    #[validate(length(min = "1", max = "500", message = "Cannot be blank"))]
-    pub lon: String,
+    pub google_address: Option<GoogleAddress>,
 }
 
-#[derive(FromForm)]
-pub struct ViewDealsWithHousesQuery {
+#[derive(Deserialize, Serialize, Validate)]
+pub struct GoogleAddress {
+    pub address_components: Vec<AddressComponents>,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub formatted_address: String,
+    pub geometry: Geometry,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub place_id: String,
+    pub types: Vec<String>,
+}
+
+#[derive(Deserialize, Serialize, Validate)]
+pub struct Geometry {
+    pub location: Location,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    pub location_type: String,
+    pub viewport: Viewport,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Viewport {
+    pub northeast: Location,
+    pub southwest: Location,
+}
+
+#[derive(Deserialize, Serialize)]
+pub struct Location {
+    pub latitude: f32,
+    pub longitude: f32,
+}
+
+#[derive(Deserialize, Serialize, Validate)]
+pub struct AddressComponents {
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    long_name: String,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    short_name: String,
+    #[validate(length(min = "0", max = "500", message = "Too long"))]
+    types: Vec<String>,
+}
+
+#[derive(FromForm, Deserialize)]
+pub struct DealsQuery {
     pub buyer_id: Option<i32>,
 }
