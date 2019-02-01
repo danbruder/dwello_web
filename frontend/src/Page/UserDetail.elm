@@ -110,16 +110,16 @@ init global id =
 
 type
     Msg
-    -- Get things
+    -- Got stuff
     = GotUser (ApiResponse User)
     | DealCreated (ApiResponse Deal)
     | DealUpdated (ApiResponse Deal)
     | GotDeals (ApiResponse (List Deal))
     | MyGeocoderResult (Result Http.Error Geocoding.Response)
-      -- Do things to the server
+      -- Do stuff to server
     | SaveStatus
-    | CreateDeal
-    | SaveAddress GeocodingResult
+    | CreateDeal GeocodingResult
+    | SearchForAddress
       -- Do things locally
     | StartEditing Deal
     | StopEditing
@@ -170,7 +170,7 @@ update global msg model =
                         Success d ->
                             case d of
                                 Data data ->
-                                    { model | dealResponse = response, address = "" }
+                                    { model | dealResponse = response, address = "", geocodeResponse = Nothing }
 
                                 _ ->
                                     { model | dealResponse = response }
@@ -221,21 +221,19 @@ update global msg model =
             , Global.none
             )
 
-        -- CreateDeal ->
-        --     let
-        --         input =
-        --             CreateDealInput model.id model.address
-        --
-        --         config =
-        --             Global.getConfig global
-        --     in
-        --     ( { model | dealResponse = Loading }, createDeal config input, Global.none )
-        CreateDeal ->
+        CreateDeal address ->
+            let
+                input =
+                    CreateDealInput model.id address.formattedAddress address
+
+                config =
+                    Global.getConfig global
+            in
+            ( { model | dealResponse = Loading }, createDeal config input, Global.none )
+
+        SearchForAddress ->
             ( model, searchForAddress (Global.getConfig global) model.address, Global.none )
 
-        -- NEED TO ADD A COMMAND TO SAVE THE REQUEST
-        -- SaveAddress geocodingResult ->
-        --   ()
         SaveStatus ->
             let
                 config =
@@ -331,17 +329,22 @@ viewContent model =
 
 
 viewGeocodeResults model =
-    case model.geocodeResponse of
-        Just (Ok r) ->
-            let
-                items =
-                    r.results
-                        |> List.map (\a -> li [ onClick (SaveAddress a) ] [ text a.formattedAddress ])
-            in
-            ul [] items
+    case model.dealResponse of
+        Loading ->
+            viewLoading
 
         _ ->
-            text "other results"
+            case model.geocodeResponse of
+                Just (Ok r) ->
+                    let
+                        items =
+                            r.results
+                                |> List.map (\a -> li [ onClick (CreateDeal a) ] [ text a.formattedAddress ])
+                    in
+                    ul [] items
+
+                _ ->
+                    text "other results"
 
 
 viewLoading =
@@ -404,7 +407,7 @@ viewDeal model deal =
 
 viewDealForm : Model -> Html Msg
 viewDealForm model =
-    Html.form [ onSubmit CreateDeal ]
+    Html.form [ onSubmit SearchForAddress ]
         [ viewInput model "text" "Address" model.address "address" Address
         , input [ type_ "submit", value "Submit" ] []
         ]

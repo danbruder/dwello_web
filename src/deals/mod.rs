@@ -58,6 +58,7 @@ pub fn create_deal(
     };
     let Conn(conn) = conn;
     let formatted_address = input.address.trim().to_owned();
+    println!("After formatted address");
 
     input.validate()?;
 

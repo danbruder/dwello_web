@@ -115,16 +115,7 @@ pub struct GoogleAddress {
     pub geometry: Geometry,
     #[validate(length(min = "0", max = "500", message = "Too long"))]
     pub place_id: String,
-    pub plus_code: PlusCode,
     pub types: Vec<String>,
-}
-
-#[derive(Deserialize, Serialize, Validate)]
-pub struct PlusCode {
-    #[validate(length(min = "0", max = "500", message = "Too long"))]
-    pub compound_code: String,
-    #[validate(length(min = "0", max = "500", message = "Too long"))]
-    pub global_code: String,
 }
 
 #[derive(Deserialize, Serialize, Validate)]
@@ -143,8 +134,8 @@ pub struct Viewport {
 
 #[derive(Deserialize, Serialize)]
 pub struct Location {
-    pub lat: i32,
-    pub lng: i32,
+    pub latitude: f32,
+    pub longitude: f32,
 }
 
 #[derive(Deserialize, Serialize, Validate)]
