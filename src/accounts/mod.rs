@@ -79,7 +79,6 @@ pub fn user_is_admin(user: &User) -> bool {
 /// Get all users
 pub fn all_users(user: CurrentUser, conn: Conn) -> Response<Vec<User>> {
     use schema::users::dsl::*;
-    println!("{:?}", user);
 
     let _ = match user {
         Admin(user) => user,
@@ -126,9 +125,8 @@ pub fn login(conn: Conn, input: LoginInput) -> Response<AuthPayload> {
     let user = match users.filter(email.eq(&input.email)).first::<User>(&conn) {
         Ok(user) => user,
         Err(_) => {
-            // Make sure it costs something if there is no user to
-            // prevent timing attacks
-            let _ = bcrypt::verify(&input.email, "hash the email");
+            // Take hash time to return results
+            let _ = bcrypt::verify(&input.email, &input.email);
             return Err(Error::from_custom_validation(
                 "email_doesnt_exist",
                 "email",
@@ -139,9 +137,18 @@ pub fn login(conn: Conn, input: LoginInput) -> Response<AuthPayload> {
 
     // Check password
     // Handle case where user doesn't exist
-    bcrypt::verify(&input.password, &user.password_hash).map_err(|_| {
+    let pw_result = bcrypt::verify(&input.password, &user.password_hash).map_err(|_| {
         return Error::from_custom_validation("password_invalid", "password", "Password is invalid");
     })?;
+
+    // If password doesn't match, return error
+    if !pw_result {
+        return Err(Error::from_custom_validation(
+            "password_invalid",
+            "password",
+            "Password is invalid",
+        ));
+    }
 
     // Create a new session
     let session = self::create_session(conn, &user)?;
