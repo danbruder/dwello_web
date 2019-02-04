@@ -14,9 +14,10 @@ import Data.Session exposing (Session)
 import Data.User exposing (User)
 import Global exposing (Global)
 import Html exposing (..)
+import Html.Attributes exposing (class, href, src, title, type_)
 import RemoteData as RD exposing (RemoteData(..), WebData)
 import Request.User
-import Route
+import Route exposing (Route)
 
 
 
@@ -80,22 +81,16 @@ view _ model =
     { title = "Home"
     , body =
         [ h1 [] [ text "Users" ]
-        , a [ Route.href <| Route.Login ]
-            [ text "Login" ]
-        , a [ Route.href <| Route.Register ]
-            [ text "Register" ]
-        , a [ Route.href <| Route.Logout ]
-            [ text "Logout" ]
-        , viewUsers model
+        , viewContent model
         ]
     }
 
 
-viewUsers : Model -> Html Msg
-viewUsers model =
+viewContent : Model -> Html Msg
+viewContent model =
     case model.users of
         NotAsked ->
-            text "Not Asked."
+            div [] []
 
         Loading ->
             text "Loading..."
@@ -106,16 +101,22 @@ viewUsers model =
         Success response ->
             case response of
                 Data userList ->
-                    ul [] <| List.map viewUser userList
+                    div [] <| List.map viewUser userList
 
                 _ ->
-                    text "Other"
+                    div [] []
 
 
 viewUser : User -> Html Msg
 viewUser user =
-    li []
-        [ a [ Route.href <| Route.UserDetail { id = user.id |> String.fromInt } ]
-            [ String.join " | " [ user.name, user.email ] |> text
+    article [ class "dt w-100 bb b--black-05 pb2 mt2" ]
+        [ a [ class "link", Route.href <| Route.UserDetail { id = user.id |> String.fromInt } ]
+            [ div [ class "dtc v-mid  " ]
+                [ h1 [ class "f6 f5-ns fw6 lh-title black mv0" ]
+                    [ text user.name
+                    ]
+                , h2 [ class "f6 fw4 mt0 mb0 black-60" ]
+                    [ text user.email ]
+                ]
             ]
         ]

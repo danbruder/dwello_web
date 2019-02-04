@@ -125,10 +125,6 @@ view _ model =
     { title = "Register"
     , body =
         [ h1 [] [ text "Register" ]
-        , a [ Route.href <| Route.Index ]
-            [ text "Home" ]
-        , a [ Route.href <| Route.Login ]
-            [ text "Login" ]
         , viewContent model
         ]
     }

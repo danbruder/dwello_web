@@ -294,8 +294,7 @@ view : Global -> Model -> Document Msg
 view global model =
     { title = "User " ++ model.id
     , body =
-        [ a [ Route.href Route.Index ] [ text "Home" ]
-        , viewContent model
+        [ viewContent model
         ]
     }
 
@@ -353,15 +352,17 @@ viewLoading =
 
 viewUser user =
     div []
-        [ h1 [] [ text user.email ]
-        , div [] [ text user.name ]
+        [ h1 [] [ text user.name ]
+        , div [] [ text user.email ]
         ]
 
 
 viewDealList model =
     div []
-        [ ul [] <| List.map (viewDeal model) model.dealList
-        ]
+        (List.map
+            (viewDeal model)
+            model.dealList
+        )
 
 
 viewDeal : Model -> Deal -> Html Msg
@@ -395,13 +396,21 @@ viewDeal model deal =
                     deal.status |> Deal.statusToString |> text
 
         dealDetail =
-            div []
-                [ div [] [ deal.title |> text ]
-                , div [] [ deal.access_code |> text ]
-                , div [ onClick (StartEditing targetDeal) ] [ status ]
+            article [ class "dt w-100 bb b--black-05 mt2 bg-white pa3 shadow-4" ]
+                [ div [ class "dtc v-mid" ]
+                    [ h1 [ class "f6 f5-ns fw6 lh-title black mv0" ]
+                        [ text deal.title
+                        ]
+                    ]
+                , div [ class "dtc v-mid" ]
+                    [ div [] [ deal.access_code |> text ]
+                    ]
+                , div [ class "dtc v-mid" ]
+                    [ div [ onClick (StartEditing targetDeal) ] [ status ]
+                    ]
                 ]
     in
-    li []
+    div []
         [ dealDetail ]
 
 

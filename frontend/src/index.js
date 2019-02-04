@@ -1,4 +1,5 @@
 const {Elm} = require('./Main');
+import './all.css'
 
 var app = Elm.Main.init({
   flags: {
