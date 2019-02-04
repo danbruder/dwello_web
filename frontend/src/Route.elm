@@ -19,6 +19,7 @@ type Route
     = Index
     | Login
     | Register
+    | Logout
     | UserDetail { id : String }
 
 
@@ -28,6 +29,7 @@ parser =
         [ UP.map Index <| UP.top
         , UP.map Login <| UP.s "login"
         , UP.map Register <| UP.s "register"
+        , UP.map Logout <| UP.s "logout"
         , UP.map (\id -> UserDetail { id = id }) <| UP.s "user" </> UP.string
         ]
 
@@ -43,6 +45,9 @@ toString route =
 
         Register ->
             UB.absolute [ "register" ] []
+
+        Logout ->
+            UB.absolute [ "logout" ] []
 
         UserDetail { id } ->
             UB.absolute [ "user", id ] []

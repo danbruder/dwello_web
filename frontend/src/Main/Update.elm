@@ -35,10 +35,6 @@ update msg model =
                 |> Tuple.mapFirst (\global -> { model | global = global })
                 |> Tuple.mapSecond (Cmd.map GlobalMsg)
 
-        ( IndexMsg imsg, Index indexModel ) ->
-            Page.Index.update model.global imsg indexModel
-                |> updatePage Index IndexMsg model
-
         ( LoginMsg lmsg, Login lmodel ) ->
             Page.Login.update model.global lmsg lmodel
                 |> updatePage Login LoginMsg model
@@ -46,6 +42,11 @@ update msg model =
         ( RegisterMsg lmsg, Register lmodel ) ->
             Page.Register.update model.global lmsg lmodel
                 |> updatePage Register RegisterMsg model
+
+        -- Protected routes
+        ( IndexMsg imsg, Index indexModel ) ->
+            Page.Index.update model.global imsg indexModel
+                |> updatePage Index IndexMsg model
 
         ( UserDetailMsg lmsg, UserDetail lmodel ) ->
             Page.UserDetail.update model.global lmsg lmodel

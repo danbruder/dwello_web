@@ -84,6 +84,8 @@ view _ model =
             [ text "Login" ]
         , a [ Route.href <| Route.Register ]
             [ text "Register" ]
+        , a [ Route.href <| Route.Logout ]
+            [ text "Logout" ]
         , viewUsers model
         ]
     }

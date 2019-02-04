@@ -11,3 +11,8 @@ var app = Elm.Main.init({
 app.ports.setToken.subscribe(function(token) {
   localStorage.setItem('token', token);
 });
+
+app.ports.logout.subscribe(function(token) {
+  localStorage.removeItem('token');
+  window.location.href = '/login'
+});

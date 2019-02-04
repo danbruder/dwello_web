@@ -9,6 +9,7 @@ module Page.Register exposing
 
 import Api exposing (ApiData(..), ApiResponse)
 import Browser exposing (Document)
+import Browser.Navigation as BN
 import Config exposing (Config)
 import Data.AuthPayload exposing (AuthPayload)
 import Data.Session exposing (Session, Token)
@@ -88,7 +89,7 @@ update global msg model =
                 Success r ->
                     case r of
                         Data { token } ->
-                            ( { model | registration = response }, Cmd.none, SetToken token )
+                            ( { model | registration = response }, BN.pushUrl (Global.getKey global) (Route.toString Route.Index), SetToken token )
 
                         _ ->
                             ( { model | registration = response }, Cmd.none, Global.none )
@@ -126,6 +127,8 @@ view _ model =
         [ h1 [] [ text "Register" ]
         , a [ Route.href <| Route.Index ]
             [ text "Home" ]
+        , a [ Route.href <| Route.Login ]
+            [ text "Login" ]
         , viewContent model
         ]
     }

@@ -9,6 +9,7 @@ module Page.Login exposing
 
 import Api exposing (ApiData(..), ApiResponse)
 import Browser exposing (Document)
+import Browser.Navigation as BN
 import Config exposing (Config)
 import Data.AuthPayload exposing (AuthPayload)
 import Data.Session exposing (Session, Token)
@@ -22,6 +23,8 @@ import Json.Encode as JE
 import RemoteData as RD exposing (RemoteData(..))
 import Request.Login exposing (LoginInput, encodeLoginInput)
 import Route
+import Task
+import Url.Builder as UB
 
 
 
@@ -86,7 +89,7 @@ update global msg model =
                 Success r ->
                     case r of
                         Data { token } ->
-                            ( { model | registration = response }, Cmd.none, SetToken token )
+                            ( { model | registration = response }, BN.pushUrl (Global.getKey global) (Route.toString Route.Index), SetToken token )
 
                         _ ->
                             ( { model | registration = response }, Cmd.none, Global.none )
@@ -121,6 +124,8 @@ view _ model =
         [ h1 [] [ text "Login" ]
         , a [ Route.href <| Route.Index ]
             [ text "Home" ]
+        , a [ Route.href <| Route.Register ]
+            [ text "Register" ]
         , viewContent model
         ]
     }
@@ -133,14 +138,14 @@ viewContent model =
             case v of
                 Data { token } ->
                     div []
-                        [ text "Data received!"
+                        [ text "Logged in!"
                         , text token
                         ]
 
                 ValidationErrors errors ->
                     div
                         []
-                        [ text "Data and an error received!"
+                        [ text "There was a problem logging in."
                         , viewLoginForm model
                         ]
 
