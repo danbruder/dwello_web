@@ -77,6 +77,7 @@ type alias Model =
     , address : String
     , editingDeal : Maybe Deal
     , geocodeResponse : Maybe (Result Http.Error Geocoding.Response)
+    , showAddressSearch : Bool
     }
 
 
@@ -95,6 +96,7 @@ init global id =
       , address = ""
       , editingDeal = Nothing
       , geocodeResponse = Nothing
+      , showAddressSearch = False
       }
     , Cmd.batch
         [ getUser config id
@@ -125,6 +127,7 @@ type
     | StopEditing
     | Address String
     | Status String
+    | ToggleAddressSearch
     | NoOp
 
 
@@ -170,7 +173,7 @@ update global msg model =
                         Success d ->
                             case d of
                                 Data data ->
-                                    { model | dealResponse = response, address = "", geocodeResponse = Nothing }
+                                    { model | dealResponse = response, address = "", geocodeResponse = Nothing, showAddressSearch = False }
 
                                 _ ->
                                     { model | dealResponse = response }
@@ -273,6 +276,9 @@ update global msg model =
             in
             ( { model | editingDeal = newDeal }, Cmd.none, Global.none )
 
+        ToggleAddressSearch ->
+            ( { model | showAddressSearch = not model.showAddressSearch, address = "", geocodeResponse = Nothing, dealResponse = NotAsked }, Cmd.none, Global.none )
+
         NoOp ->
             ( model, Cmd.none, Global.none )
 
@@ -315,8 +321,7 @@ viewContent model =
                 Data d ->
                     div []
                         [ viewUser d
-                        , viewDealForm model
-                        , viewGeocodeResults model
+                        , viewAddressForm model
                         , viewDealList model
                         ]
 
@@ -330,7 +335,18 @@ viewContent model =
             div [] [ text "Something else" ]
 
 
+viewGeocodeResults : Model -> Html Msg
 viewGeocodeResults model =
+    let
+        formatHit =
+            \a -> li [ class "cursor-pointer hover:bg-indigo-lightest p-6", onClick (CreateDeal a) ] [ text a.formattedAddress ]
+
+        viewHits =
+            \list ->
+                div [ class "" ]
+                    [ ul [ class "list-reset" ] (List.map formatHit list)
+                    ]
+    in
     case model.dealResponse of
         Loading ->
             viewLoading
@@ -341,46 +357,47 @@ viewGeocodeResults model =
                     let
                         items =
                             r.results
-                                |> List.map (\a -> li [ onClick (CreateDeal a) ] [ text a.formattedAddress ])
                     in
-                    ul [] items
+                    viewHits items
 
                 _ ->
-                    text "other results"
+                    text ""
 
 
 viewLoading =
-    div [] [ text "Loading" ]
+    div [ class "spinner" ] []
 
 
 viewUser user =
     div []
-        [ h1 [] [ text user.name ]
+        [ h1 [ class "text-grey-darkest pb-2" ] [ text user.name ]
         , div [] [ text user.email ]
         ]
 
 
 viewDealList model =
-    div [ class " border-b border-grey-light overflow-hidden relative" ]
-        [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
-            [ table [ class "w-full text-left table-collapse" ]
-                [ thead []
-                    [ tr []
-                        [ th [ class "text-sm font-semibold text-grey-darker p-2" ]
-                            [ text "Address" ]
-                        , th [ class "text-sm font-semibold text-grey-darker p-2" ]
-                            [ text "Code" ]
-                        , th [ style "min-width" "100px", class "text-sm font-semibold text-grey-darker p-2" ]
-                            [ text "Status" ]
-                        , th [ style "min-width" "100px", class "text-sm font-semibold text-grey-darker p-2" ]
-                            [ text "" ]
+    div [ class "bg-white shadow-md rounded mt-4 p-6 " ]
+        [ div [ class " border-b border-grey-light overflow-hidden relative" ]
+            [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
+                [ table [ class "w-full text-left table-collapse" ]
+                    [ thead []
+                        [ tr []
+                            [ th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                                [ text "Address" ]
+                            , th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                                [ text "Code" ]
+                            , th [ style "min-width" "100px", class "text-sm font-semibold text-grey-darker p-2" ]
+                                [ text "Status" ]
+                            , th [ style "min-width" "100px", class "text-sm font-semibold text-grey-darker p-2" ]
+                                [ text "" ]
+                            ]
                         ]
+                    , tbody [ class "align-baseline" ]
+                        (List.map
+                            (viewDeal model)
+                            model.dealList
+                        )
                     ]
-                , tbody [ class "align-baseline" ]
-                    (List.map
-                        (viewDeal model)
-                        model.dealList
-                    )
                 ]
             ]
         ]
@@ -428,28 +445,47 @@ viewDeal model deal =
                         ]
     in
     tr []
-        [ td [ class "p-2 border-t border-grey-light  text-xs text-purple-dark whitespace-no-wrap" ]
+        [ td [ class "p-2 border-t border-grey-light  text-s whitespace-no-wrap" ]
             [ text deal.title
             ]
-        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+        , td [ class "p-2 border-t border-grey-light  text-s  whitespace-pre" ]
             [ text deal.access_code ]
-        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+        , td [ class "p-2 border-t border-grey-light  text-s  whitespace-pre" ]
             [ status ]
-        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+        , td [ class "p-2 border-t border-grey-light  text-s text-indigo whitespace-pre" ]
             [ edit ]
         ]
 
 
-viewDealForm : Model -> Html Msg
-viewDealForm model =
-    Html.form [ class "w-full max-w-sm", onSubmit SearchForAddress ]
-        [ div [ class "flex items-center border-b border-b-2 border-teal py-2" ]
-            [ input [ class "appearance-none bg-transparent border-none w-full text-grey-darker mr-3 py-1 px-2 leading-tight focus:outline-none", placeholder "Address", type_ "text" ]
-                []
-            , button [ class "flex-no-shrink bg-teal hover:bg-teal-dark border-teal hover:border-teal-dark text-sm border-4 text-white py-1 px-2 rounded", type_ "button" ]
-                [ text "Search" ]
-            ]
-        ]
+viewAddressForm : Model -> Html Msg
+viewAddressForm model =
+    case model.showAddressSearch of
+        True ->
+            div [ class "bg-white shadow rounded" ]
+                [ Html.form [ class "mt-6 p-6 flex justify-start items-start ", onSubmit SearchForAddress ]
+                    [ div [ class "mr-4" ]
+                        [ input
+                            [ class "bg-grey-lighter p-2 appearance-none  max-w-xs  border-grey rounded w-full   text-grey-darkest leading-tight focus:outline-none focus:bg-white focus:border-indigo"
+                            , classList [ ( "border border-red", hasValidationErrors model "address" ) ]
+                            , id "address"
+                            , type_ "text"
+                            , placeholder "Search for pin address"
+                            , onInput Address
+                            , value model.address
+                            ]
+                            []
+                        , formatValidationErrors model "address"
+                        ]
+                    , input [ class "cursor-pointer bg-indigo text-white hover:bg-indigo-light focus:shadow-outline focus:outline-none  font-bold py-2 px-4 rounded", type_ "submit", value "Search" ] []
+                    , button [ onClick ToggleAddressSearch, class "cursor-pointer text-indigo  py-2 px-4 ", type_ "button" ] [ text "Cancel" ]
+                    ]
+                , viewGeocodeResults model
+                ]
+
+        False ->
+            div [ class "mt-8" ]
+                [ button [ onClick ToggleAddressSearch, class "cursor-pointer  bg-indigo  text-white mb-4  font-bold py-2 px-4 rounded", type_ "button" ] [ text "New Pin" ]
+                ]
 
 
 viewInput :
@@ -487,3 +523,22 @@ getValidationErrors model f =
 
         _ ->
             ""
+
+
+formatValidationErrors : Model -> String -> Html msg
+formatValidationErrors model field =
+    let
+        errs =
+            getValidationErrors model field
+    in
+    if errs /= "" then
+        p [ class "text-red text-xs italic pt-2" ]
+            [ text errs ]
+
+    else
+        text ""
+
+
+hasValidationErrors : Model -> String -> Bool
+hasValidationErrors model field =
+    getValidationErrors model field /= ""

@@ -19,12 +19,20 @@ import Global exposing (Global, Msg(..))
 import Html exposing (..)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput, onSubmit)
+import Http
 import Json.Encode as JE
 import RemoteData as RD exposing (RemoteData(..))
 import Request.Login exposing (LoginInput, encodeLoginInput)
 import Route
 import Task
 import Url.Builder as UB
+
+
+type Toast
+    = Empty
+    | Warn String
+    | Bad String
+    | Good String
 
 
 
@@ -46,12 +54,13 @@ type alias Model =
     { email : String
     , password : String
     , registration : ApiResponse AuthPayload
+    , toast : Toast
     }
 
 
 init : Global -> ( Model, Cmd Msg, Global.Msg )
 init global =
-    ( Model "" "" NotAsked
+    ( Model "" "" NotAsked Empty
     , Cmd.none
     , Global.none
     )
@@ -89,19 +98,33 @@ update global msg model =
                 Success r ->
                     case r of
                         Data { token } ->
-                            ( { model | registration = response }, BN.pushUrl (Global.getKey global) (Route.toString Route.Index), SetToken token )
+                            ( { model | registration = response, toast = Good "Success" }, BN.pushUrl (Global.getKey global) (Route.toString Route.Index), SetToken token )
 
-                        _ ->
+                        ValidationErrors _ ->
                             ( { model | registration = response }, Cmd.none, Global.none )
 
+                        ServerError err ->
+                            ( { model | registration = response, toast = Bad err }, Cmd.none, Global.none )
+
+                Failure err ->
+                    case err of
+                        Http.NetworkError ->
+                            ( { model | registration = response, toast = Bad "Could not connect to server" }, Cmd.none, Global.none )
+
+                        Http.Timeout ->
+                            ( { model | registration = response, toast = Bad "Could not connect to server" }, Cmd.none, Global.none )
+
+                        _ ->
+                            ( { model | registration = response, toast = Bad "Server error" }, Cmd.none, Global.none )
+
                 _ ->
-                    ( { model | registration = response }, Cmd.none, Global.none )
+                    ( model, Cmd.none, Global.none )
 
         Email v ->
-            ( { model | email = v }, Cmd.none, Global.none )
+            ( { model | email = v, toast = Empty }, Cmd.none, Global.none )
 
         Password v ->
-            ( { model | password = v }, Cmd.none, Global.none )
+            ( { model | password = v, toast = Empty }, Cmd.none, Global.none )
 
 
 
@@ -121,50 +144,56 @@ view : Global -> Model -> Document Msg
 view _ model =
     { title = "Login"
     , body =
-        [ h1 [] [ text "Login" ]
-        , viewContent model
+        [ div [ class "bg-grey-lighter h-full" ]
+            [ viewContent model
+            , viewToast model
+            ]
         ]
     }
 
 
 viewContent : Model -> Html Msg
 viewContent model =
-    case model.registration of
-        Success v ->
-            case v of
-                Data { token } ->
-                    div []
-                        [ text "Logged in!"
-                        , text token
-                        ]
-
-                ValidationErrors errors ->
-                    div
-                        []
-                        [ text "There was a problem logging in."
-                        , viewLoginForm model
-                        ]
-
-                _ ->
-                    text "other"
-
-        NotAsked ->
-            viewLoginForm model
-
-        Loading ->
-            text "loading"
-
-        _ ->
-            viewLoginForm model
+    viewLoginForm model
 
 
 viewLoginForm : Model -> Html Msg
 viewLoginForm model =
-    Html.form [ onSubmit SubmitForm ]
-        [ viewInput model "text" "Email" model.email "email" Email
-        , viewInput model "password" "Password" model.password "password" Password
-        , input [ type_ "submit", value "Submit" ] []
+    let
+        submit =
+            case isLoading model of
+                True ->
+                    div [ class "spinner ml-8" ] []
+
+                False ->
+                    input [ class "bg-indigo hover:bg-indigo-dark text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline", type_ "submit", value "Submit" ] []
+    in
+    div [ class "flex justify-center items-center h-full" ]
+        [ div [ class "w-full max-w-xs" ]
+            [ Html.form [ class "bg-white shadow-md rounded px-8 pt-6 pb-8 mb-4", onSubmit SubmitForm ]
+                [ h1 [ class "text-grey-darkest text-lg pb-4" ] [ text "Login" ]
+                , viewInput model "text" "Email" model.email "email" Email
+                , viewInput model "password" "Password" model.password "password" Password
+                , div [ class "pt-6 flex items-center justify-between" ]
+                    [ submit
+                    , a [ class "inline-block align-baseline font-bold text-sm text-indigo hover:text-indigo-darker", href "#" ]
+                        [ text "Forgot Password?      " ]
+                    ]
+                ]
+            , p [ class "text-center text-grey text-xs" ]
+                [ text "©2019 Dwello. All rights reserved.  " ]
+            ]
         ]
+
+
+isLoading : Model -> Bool
+isLoading model =
+    case model.registration of
+        Loading ->
+            True
+
+        _ ->
+            False
 
 
 viewInput :
@@ -175,14 +204,21 @@ viewInput :
     -> String
     -> (String -> msg)
     -> Html msg
-viewInput model t p v field toMsg =
-    div []
-        [ label []
-            [ text p ]
+viewInput model t pl v field toMsg =
+    div [ class "mb-4" ]
+        [ label [ class "block text-grey-darker text-sm font-bold mb-2", for field ]
+            [ text pl ]
         , input
-            [ type_ t, placeholder p, value v, onInput toMsg ]
+            [ class "shadow appearance-none border  rounded w-full py-2 px-3 text-grey-darker  leading-tight focus:outline-none focus:shadow-outline"
+            , classList [ ( "border-red", hasValidationErrors model field ) ]
+            , id field
+            , placeholder pl
+            , type_ t
+            , value v
+            , onInput toMsg
+            ]
             []
-        , getValidationErrors model field |> text
+        , formatValidationErrors model field
         ]
 
 
@@ -195,10 +231,51 @@ getValidationErrors model f =
                     validationErrors
                         |> List.filter (\{ field } -> field == f)
                         |> List.map .message
-                        |> String.join "\n"
+                        |> String.join ", "
 
                 _ ->
                     ""
 
         _ ->
             ""
+
+
+formatValidationErrors : Model -> String -> Html msg
+formatValidationErrors model field =
+    let
+        errs =
+            getValidationErrors model field
+    in
+    if errs /= "" then
+        p [ class "text-red text-xs italic pt-2" ]
+            [ text errs ]
+
+    else
+        text ""
+
+
+hasValidationErrors : Model -> String -> Bool
+hasValidationErrors model field =
+    getValidationErrors model field /= ""
+
+
+viewToast : Model -> Html Msg
+viewToast model =
+    case model.toast of
+        Empty ->
+            text ""
+
+        Warn t ->
+            div [ class "fixed pin-b w-full z-10 bg-yellow-lighter p-2 text-xs" ]
+                [ text t
+                ]
+
+        Bad t ->
+            div [ class "fixed pin-b w-full z-10 bg-red-lighter p-2 text-xs" ]
+                [ text t
+                ]
+
+        Good t ->
+            div [ class "fixed pin-b w-full z-10 bg-green-lighter p-2 text-xs" ]
+                [ text t
+                ]

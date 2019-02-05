@@ -95,7 +95,7 @@ viewContent model =
             div [] []
 
         Loading ->
-            text "Loading..."
+            div [ class "spinner flex justify-center w-full h-16" ] []
 
         Failure error ->
             text "Error"
@@ -111,22 +111,24 @@ viewContent model =
 
 viewUserTable : List User -> Html Msg
 viewUserTable users =
-    div [ class "pt-5 border-b border-grey-light overflow-hidden relative" ]
-        [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
-            [ table [ class "w-full text-left table-collapse" ]
-                [ thead []
-                    [ tr []
-                        [ th [ class "text-sm font-semibold text-grey-darker p-2" ]
-                            [ text "Name" ]
-                        , th [ class "text-sm font-semibold text-grey-darker p-2" ]
-                            [ text "Email" ]
+    div [ class "bg-white shadow-md rounded my-8 p-6 " ]
+        [ div [ class " border-b border-grey-light overflow-hidden relative" ]
+            [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
+                [ table [ class "w-full text-left table-collapse" ]
+                    [ thead []
+                        [ tr []
+                            [ th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                                [ text "Name" ]
+                            , th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                                [ text "Email" ]
+                            ]
                         ]
+                    , tbody [ class "align-baseline" ]
+                        (List.map
+                            viewUser
+                            users
+                        )
                     ]
-                , tbody [ class "align-baseline" ]
-                    (List.map
-                        viewUser
-                        users
-                    )
                 ]
             ]
         ]
@@ -135,11 +137,11 @@ viewUserTable users =
 viewUser : User -> Html Msg
 viewUser user =
     tr []
-        [ td [ class "p-2 border-t border-grey-light  text-xs text-purple-dark whitespace-no-wrap" ]
-            [ a [ class "link", Route.href <| Route.UserDetail { id = user.id |> String.fromInt } ]
+        [ td [ class "p-2 border-t border-grey-light text-s  whitespace-no-wrap" ]
+            [ a [ class "no-underline text-indigo", Route.href <| Route.UserDetail { id = user.id |> String.fromInt } ]
                 [ text user.name
                 ]
             ]
-        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+        , td [ class "p-2 border-t border-grey-light  text-s  whitespace-pre" ]
             [ text user.email ]
         ]

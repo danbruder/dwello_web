@@ -27,16 +27,28 @@ view model =
             { title = title
             , body = [ viewPageWrap model mappedBody ]
             }
+
+        viewPageWithNoWrap toMsg pageModel pageView =
+            let
+                { title, body } =
+                    pageView model.global pageModel
+
+                mappedBody =
+                    List.map (Html.map toMsg) body
+            in
+            { title = title
+            , body = mappedBody
+            }
     in
     case model.page of
         Index indexModel ->
             viewPage IndexMsg indexModel Page.Index.view
 
         Login lmodel ->
-            viewPage LoginMsg lmodel Page.Login.view
+            viewPageWithNoWrap LoginMsg lmodel Page.Login.view
 
         Register lmodel ->
-            viewPage RegisterMsg lmodel Page.Register.view
+            viewPageWithNoWrap RegisterMsg lmodel Page.Register.view
 
         UserDetail lmodel ->
             viewPage UserDetailMsg lmodel Page.UserDetail.view
@@ -49,11 +61,10 @@ view model =
 
 viewPageWrap : Model -> List (Html Msg) -> Html Msg
 viewPageWrap model mb =
-    div [ class "w-100" ]
+    div [ class "w-100 bg-grey-lightest h-full" ]
         [ viewHeader model
-        , div [ class "min-h-screen md:flex" ]
-            [ viewSidebar model
-            , div [ class "flex-1 p-8 bg-grey-lightest" ] mb
+        , div [ class "" ]
+            [ div [ class "p-8 " ] mb
             ]
         ]
 
@@ -63,7 +74,9 @@ viewHeader model =
     nav [ class "flex items-center justify-between flex-wrap bg-indigo-dark p-6" ]
         [ div [ class "flex items-center flex-no-shrink text-white mr-6" ]
             [ span [ class "font-semibold text-xl tracking-tight" ]
-                [ text "Dwello" ]
+                [ a [ class "text-white no-underline", Route.href <| Route.Index ]
+                    [ text "Dwello" ]
+                ]
             ]
         , div [ class "w-full block flex-grow lg:flex lg:items-center lg:w-auto" ]
             [ div [ class "text-sm lg:flex-grow" ] []
