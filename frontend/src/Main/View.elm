@@ -3,7 +3,7 @@ module Main.View exposing (view)
 import Browser exposing (Document)
 import Global
 import Html exposing (..)
-import Html.Attributes exposing (class, href, src, title, type_)
+import Html.Attributes exposing (class, href, src, style, title, type_)
 import Main.Model exposing (Model, Page(..))
 import Main.Msg exposing (Msg(..))
 import Page.Index
@@ -51,12 +51,53 @@ viewPageWrap : Model -> List (Html Msg) -> Html Msg
 viewPageWrap model mb =
     div [ class "w-100" ]
         [ viewHeader model
-        , div [ class "mw7 center ph3 pv3" ] mb
+        , div [ class "min-h-screen md:flex" ]
+            [ viewSidebar model
+            , div [ class "flex-1 p-8 bg-grey-lightest" ] mb
+            ]
         ]
 
 
 viewHeader : Model -> Html Msg
 viewHeader model =
+    nav [ class "flex items-center justify-between flex-wrap bg-indigo-dark p-6" ]
+        [ div [ class "flex items-center flex-no-shrink text-white mr-6" ]
+            [ span [ class "font-semibold text-xl tracking-tight" ]
+                [ text "Dwello" ]
+            ]
+        , div [ class "w-full block flex-grow lg:flex lg:items-center lg:w-auto" ]
+            [ div [ class "text-sm lg:flex-grow" ] []
+            ]
+        ]
+
+
+loggedInLinks =
+    [ viewSidebarLink Route.Index "Users"
+    , viewSidebarLink Route.Logout "Logout"
+    ]
+
+
+loggedOutLinks =
+    [ viewSidebarLink Route.Login "Login"
+    , viewSidebarLink Route.Register "Register"
+    ]
+
+
+viewHeaderLink : Route -> String -> Html Msg
+viewHeaderLink route txt =
+    a [ class "block mt-4 lg:inline-block lg:mt-0 text-indigo-lighter hover:text-white mr-4", Route.href <| route, title txt ]
+        [ text txt ]
+
+
+viewSidebarLink : Route -> String -> Html Msg
+viewSidebarLink route txt =
+    li []
+        [ a [ class "no-underline text-black px-4 py-3 block", Route.href <| route, title txt ]
+            [ text txt ]
+        ]
+
+
+viewSidebar model =
     let
         loggedIn =
             Global.getToken model.global /= ""
@@ -69,34 +110,6 @@ viewHeader model =
                 False ->
                     loggedOutLinks
     in
-    header [ class "w-100 bg-white center shadow-4" ]
-        [ div [ class "mw7 center pa3" ]
-            [ div [ class "db dt-ns center w-100" ]
-                [ div [ class "db dtc-ns v-mid tl w-50" ]
-                    [ a [ class "dib f5 f4-ns fw6 mt0 mb1 link black-70", Route.href <| Route.Index, title "Home" ]
-                        [ text "Dwello"
-                        ]
-                    ]
-                , nav [ class "db dtc-ns v-mid w-100 tl tr-ns mt2 mt0-ns" ]
-                    links
-                ]
-            ]
+    div [ style "max-width" "200px", class "flex-none w-full p-6 bg-grey-lighter" ]
+        [ ul [ class "list-reset" ] links
         ]
-
-
-loggedInLinks =
-    [ viewHeaderLink Route.Index "Users"
-    , viewHeaderLink Route.Logout "Logout"
-    ]
-
-
-loggedOutLinks =
-    [ viewHeaderLink Route.Login "Login"
-    , viewHeaderLink Route.Register "Register"
-    ]
-
-
-viewHeaderLink : Route -> String -> Html Msg
-viewHeaderLink route txt =
-    a [ class "f6 fw6 hover-blue link black-70 ml2 ml3-m ml4-l dib", Route.href <| route, title txt ]
-        [ text txt ]

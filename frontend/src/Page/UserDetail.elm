@@ -294,7 +294,10 @@ view : Global -> Model -> Document Msg
 view global model =
     { title = "User " ++ model.id
     , body =
-        [ viewContent model
+        [ div [ class "container mx-auto" ]
+            [ viewContent
+                model
+            ]
         ]
     }
 
@@ -358,11 +361,29 @@ viewUser user =
 
 
 viewDealList model =
-    div []
-        (List.map
-            (viewDeal model)
-            model.dealList
-        )
+    div [ class " border-b border-grey-light overflow-hidden relative" ]
+        [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
+            [ table [ class "w-full text-left table-collapse" ]
+                [ thead []
+                    [ tr []
+                        [ th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                            [ text "Address" ]
+                        , th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                            [ text "Code" ]
+                        , th [ style "min-width" "100px", class "text-sm font-semibold text-grey-darker p-2" ]
+                            [ text "Status" ]
+                        , th [ style "min-width" "100px", class "text-sm font-semibold text-grey-darker p-2" ]
+                            [ text "" ]
+                        ]
+                    ]
+                , tbody [ class "align-baseline" ]
+                    (List.map
+                        (viewDeal model)
+                        model.dealList
+                    )
+                ]
+            ]
+        ]
 
 
 viewDeal : Model -> Deal -> Html Msg
@@ -387,7 +408,7 @@ viewDeal model deal =
         status =
             case editing of
                 True ->
-                    select [ onInput Status, onBlur SaveStatus, autofocus True, value (targetDeal.status |> Deal.statusToString) ]
+                    select [ onInput Status, autofocus True ]
                         [ option [ value "Initialized" ] [ text "Initialized" ]
                         , option [ value "MailerSent" ] [ text "MailerSent" ]
                         ]
@@ -395,30 +416,39 @@ viewDeal model deal =
                 False ->
                     deal.status |> Deal.statusToString |> text
 
-        dealDetail =
-            article [ class "dt w-100 bb b--black-05 mt2 bg-white pa3 shadow-4" ]
-                [ div [ class "dtc v-mid" ]
-                    [ h1 [ class "f6 f5-ns fw6 lh-title black mv0" ]
-                        [ text deal.title
+        edit =
+            case editing of
+                False ->
+                    div [ style "cursor" "pointer", onClick (StartEditing deal) ] [ text "edit" ]
+
+                True ->
+                    div [ class "flex" ]
+                        [ div [ class "pr-3", style "cursor" "pointer", onClick SaveStatus ] [ text "save" ]
+                        , div [ style "cursor" "pointer", onClick StopEditing ] [ text "cancel" ]
                         ]
-                    ]
-                , div [ class "dtc v-mid" ]
-                    [ div [] [ deal.access_code |> text ]
-                    ]
-                , div [ class "dtc v-mid" ]
-                    [ div [ onClick (StartEditing targetDeal) ] [ status ]
-                    ]
-                ]
     in
-    div []
-        [ dealDetail ]
+    tr []
+        [ td [ class "p-2 border-t border-grey-light  text-xs text-purple-dark whitespace-no-wrap" ]
+            [ text deal.title
+            ]
+        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+            [ text deal.access_code ]
+        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+            [ status ]
+        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+            [ edit ]
+        ]
 
 
 viewDealForm : Model -> Html Msg
 viewDealForm model =
-    Html.form [ onSubmit SearchForAddress ]
-        [ viewInput model "text" "Address" model.address "address" Address
-        , input [ type_ "submit", value "Submit" ] []
+    Html.form [ class "w-full max-w-sm", onSubmit SearchForAddress ]
+        [ div [ class "flex items-center border-b border-b-2 border-teal py-2" ]
+            [ input [ class "appearance-none bg-transparent border-none w-full text-grey-darker mr-3 py-1 px-2 leading-tight focus:outline-none", placeholder "Address", type_ "text" ]
+                []
+            , button [ class "flex-no-shrink bg-teal hover:bg-teal-dark border-teal hover:border-teal-dark text-sm border-4 text-white py-1 px-2 rounded", type_ "button" ]
+                [ text "Search" ]
+            ]
         ]
 
 

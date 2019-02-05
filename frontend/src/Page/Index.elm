@@ -14,7 +14,7 @@ import Data.Session exposing (Session)
 import Data.User exposing (User)
 import Global exposing (Global)
 import Html exposing (..)
-import Html.Attributes exposing (class, href, src, title, type_)
+import Html.Attributes exposing (attribute, class, href, src, title, type_)
 import RemoteData as RD exposing (RemoteData(..), WebData)
 import Request.User
 import Route exposing (Route)
@@ -80,8 +80,10 @@ view : Global -> Model -> Document Msg
 view _ model =
     { title = "Home"
     , body =
-        [ h1 [] [ text "Users" ]
-        , viewContent model
+        [ div [ class "container mx-auto " ]
+            [ h1 [] [ text "Users" ]
+            , viewContent model
+            ]
         ]
     }
 
@@ -101,22 +103,43 @@ viewContent model =
         Success response ->
             case response of
                 Data userList ->
-                    div [] <| List.map viewUser userList
+                    viewUserTable userList
 
                 _ ->
                     div [] []
 
 
-viewUser : User -> Html Msg
-viewUser user =
-    article [ class "dt w-100 bb b--black-05 pb2 mt2" ]
-        [ a [ class "link", Route.href <| Route.UserDetail { id = user.id |> String.fromInt } ]
-            [ div [ class "dtc v-mid  " ]
-                [ h1 [ class "f6 f5-ns fw6 lh-title black mv0" ]
-                    [ text user.name
+viewUserTable : List User -> Html Msg
+viewUserTable users =
+    div [ class "pt-5 border-b border-grey-light overflow-hidden relative" ]
+        [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
+            [ table [ class "w-full text-left table-collapse" ]
+                [ thead []
+                    [ tr []
+                        [ th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                            [ text "Name" ]
+                        , th [ class "text-sm font-semibold text-grey-darker p-2" ]
+                            [ text "Email" ]
+                        ]
                     ]
-                , h2 [ class "f6 fw4 mt0 mb0 black-60" ]
-                    [ text user.email ]
+                , tbody [ class "align-baseline" ]
+                    (List.map
+                        viewUser
+                        users
+                    )
                 ]
             ]
+        ]
+
+
+viewUser : User -> Html Msg
+viewUser user =
+    tr []
+        [ td [ class "p-2 border-t border-grey-light  text-xs text-purple-dark whitespace-no-wrap" ]
+            [ a [ class "link", Route.href <| Route.UserDetail { id = user.id |> String.fromInt } ]
+                [ text user.name
+                ]
+            ]
+        , td [ class "p-2 border-t border-grey-light  text-xs text-blue-dark whitespace-pre" ]
+            [ text user.email ]
         ]
