@@ -71,8 +71,8 @@ viewPageWrap model mb =
 
 viewHeader : Model -> Html Msg
 viewHeader model =
-    nav [ class "flex items-center justify-between flex-wrap bg-indigo-dark p-6" ]
-        [ div [ class "flex items-center flex-no-shrink text-white mr-6" ]
+    nav [ class "bg-indigo-dark p-4" ]
+        [ div [ class "container mx-auto" ]
             [ span [ class "font-semibold text-xl tracking-tight" ]
                 [ a [ class "text-white no-underline", Route.href <| Route.Index ]
                     [ text "Dwello" ]

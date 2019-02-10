@@ -23,6 +23,8 @@ import RemoteData as RD exposing (RemoteData(..))
 import Request.Deal exposing (CreateDealInput, UpdateDealInput)
 import Request.User
 import Route
+import Svg exposing (svg)
+import Svg.Attributes exposing (d, path, viewBox)
 
 
 
@@ -77,7 +79,7 @@ type alias Model =
     , address : String
     , editingDeal : Maybe Deal
     , geocodeResponse : Maybe (Result Http.Error Geocoding.Response)
-    , showAddressSearch : Bool
+    , showAddressSearchControls : Bool
     }
 
 
@@ -96,7 +98,7 @@ init global id =
       , address = ""
       , editingDeal = Nothing
       , geocodeResponse = Nothing
-      , showAddressSearch = False
+      , showAddressSearchControls = False
       }
     , Cmd.batch
         [ getUser config id
@@ -173,7 +175,7 @@ update global msg model =
                         Success d ->
                             case d of
                                 Data data ->
-                                    { model | dealResponse = response, address = "", geocodeResponse = Nothing, showAddressSearch = False }
+                                    { model | dealResponse = response, address = "", geocodeResponse = Nothing, showAddressSearchControls = False }
 
                                 _ ->
                                     { model | dealResponse = response }
@@ -261,7 +263,7 @@ update global msg model =
 
         -- New Deal form
         Address a ->
-            ( { model | address = a }, Cmd.none, Global.none )
+            ( { model | address = a, showAddressSearchControls = True, geocodeResponse = Nothing }, Cmd.none, Global.none )
 
         -- Edit deal values
         Status a ->
@@ -277,7 +279,7 @@ update global msg model =
             ( { model | editingDeal = newDeal }, Cmd.none, Global.none )
 
         ToggleAddressSearch ->
-            ( { model | showAddressSearch = not model.showAddressSearch, address = "", geocodeResponse = Nothing, dealResponse = NotAsked }, Cmd.none, Global.none )
+            ( { model | showAddressSearchControls = not model.showAddressSearchControls, address = "", geocodeResponse = Nothing, dealResponse = NotAsked }, Cmd.none, Global.none )
 
         NoOp ->
             ( model, Cmd.none, Global.none )
@@ -321,7 +323,6 @@ viewContent model =
                 Data d ->
                     div []
                         [ viewUser d
-                        , viewAddressForm model
                         , viewDealList model
                         ]
 
@@ -339,7 +340,7 @@ viewGeocodeResults : Model -> Html Msg
 viewGeocodeResults model =
     let
         formatHit =
-            \a -> li [ class "cursor-pointer hover:bg-indigo-lightest p-6", onClick (CreateDeal a) ] [ text a.formattedAddress ]
+            \a -> li [ class "mt-2 cursor-pointer hover:bg-indigo-lightest absolute bg-white p-4 border border-grey shadow", onClick (CreateDeal a) ] [ text a.formattedAddress ]
 
         viewHits =
             \list ->
@@ -376,7 +377,17 @@ viewUser user =
 
 
 viewDealList model =
-    div [ class "bg-white shadow-md rounded mt-4 p-6 " ]
+    let
+        addressRow =
+            viewAddressForm model
+
+        rows =
+            List.map (viewDeal model) model.dealList
+
+        allRows =
+            addressRow :: rows
+    in
+    div [ class "bg-white shadow rounded mt-4 p-6 " ]
         [ div [ class " border-b border-grey-light overflow-hidden relative" ]
             [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
                 [ table [ class "w-full text-left table-collapse" ]
@@ -392,11 +403,7 @@ viewDealList model =
                                 [ text "" ]
                             ]
                         ]
-                    , tbody [ class "align-baseline" ]
-                        (List.map
-                            (viewDeal model)
-                            model.dealList
-                        )
+                    , tbody [ class "align-baseline" ] allRows
                     ]
                 ]
             ]
@@ -459,33 +466,50 @@ viewDeal model deal =
 
 viewAddressForm : Model -> Html Msg
 viewAddressForm model =
-    case model.showAddressSearch of
-        True ->
-            div [ class "bg-white shadow rounded" ]
-                [ Html.form [ class "mt-6 p-6 flex justify-start items-start ", onSubmit SearchForAddress ]
-                    [ div [ class "mr-4" ]
+    let
+        searchControls =
+            case model.showAddressSearchControls of
+                True ->
+                    span []
+                        [ input [ class "cursor-pointer  font-bold", type_ "submit", value "Search" ] []
+                        , button [ onClick ToggleAddressSearch, class "cursor-pointer text-indigo  ", type_ "button" ] [ text "Cancel" ]
+                        ]
+
+                False ->
+                    text ""
+
+        f =
+            div []
+                [ Html.form [ class "flex justify-start items-start ", onSubmit SearchForAddress ]
+                    [ div [ class "w-full max-w-s" ]
                         [ input
-                            [ class "bg-grey-lighter p-2 appearance-none  max-w-xs  border-grey rounded w-full   text-grey-darkest leading-tight focus:outline-none focus:bg-white focus:border-indigo"
+                            [ class " appearance-none   w-full text-grey-darkest leading-tight focus:outline-none focus:bg-white focus:border-indigo"
                             , classList [ ( "border border-red", hasValidationErrors model "address" ) ]
                             , id "address"
                             , type_ "text"
-                            , placeholder "Search for pin address"
+                            , placeholder "Add new pin address"
                             , onInput Address
                             , value model.address
                             ]
                             []
                         , formatValidationErrors model "address"
                         ]
-                    , input [ class "cursor-pointer bg-indigo text-white hover:bg-indigo-light focus:shadow-outline focus:outline-none  font-bold py-2 px-4 rounded", type_ "submit", value "Search" ] []
-                    , button [ onClick ToggleAddressSearch, class "cursor-pointer text-indigo  py-2 px-4 ", type_ "button" ] [ text "Cancel" ]
+                    , searchControls
                     ]
                 , viewGeocodeResults model
                 ]
-
-        False ->
-            div [ class "mt-8" ]
-                [ button [ onClick ToggleAddressSearch, class "cursor-pointer  bg-indigo  text-white mb-4  font-bold py-2 px-4 rounded", type_ "button" ] [ text "New Pin" ]
-                ]
+    in
+    tr []
+        [ td [ class "p-2 border-t border-grey-light  text-s whitespace-no-wrap" ]
+            [ f
+            ]
+        , td [ class "p-2 border-t border-grey-light  text-s  whitespace-pre" ]
+            []
+        , td [ class "p-2 border-t border-grey-light  text-s  whitespace-pre" ]
+            []
+        , td [ class "p-2 border-t border-grey-light  text-s text-indigo whitespace-pre" ]
+            []
+        ]
 
 
 viewInput :
