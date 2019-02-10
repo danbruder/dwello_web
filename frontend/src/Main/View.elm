@@ -71,46 +71,6 @@ viewPageWrap model mb =
 
 viewHeader : Model -> Html Msg
 viewHeader model =
-    nav [ class "bg-indigo-dark p-4" ]
-        [ div [ class "container mx-auto" ]
-            [ span [ class "font-semibold text-xl tracking-tight" ]
-                [ a [ class "text-white no-underline", Route.href <| Route.Index ]
-                    [ text "Dwello" ]
-                ]
-            ]
-        , div [ class "w-full block flex-grow lg:flex lg:items-center lg:w-auto" ]
-            [ div [ class "text-sm lg:flex-grow" ] []
-            ]
-        ]
-
-
-loggedInLinks =
-    [ viewSidebarLink Route.Index "Users"
-    , viewSidebarLink Route.Logout "Logout"
-    ]
-
-
-loggedOutLinks =
-    [ viewSidebarLink Route.Login "Login"
-    , viewSidebarLink Route.Register "Register"
-    ]
-
-
-viewHeaderLink : Route -> String -> Html Msg
-viewHeaderLink route txt =
-    a [ class "block mt-4 lg:inline-block lg:mt-0 text-indigo-lighter hover:text-white mr-4", Route.href <| route, title txt ]
-        [ text txt ]
-
-
-viewSidebarLink : Route -> String -> Html Msg
-viewSidebarLink route txt =
-    li []
-        [ a [ class "no-underline text-black px-4 py-3 block", Route.href <| route, title txt ]
-            [ text txt ]
-        ]
-
-
-viewSidebar model =
     let
         loggedIn =
             Global.getToken model.global /= ""
@@ -122,7 +82,39 @@ viewSidebar model =
 
                 False ->
                     loggedOutLinks
+
+        wrappedLinks =
+            div [ class "flex" ] links
+
+        logo =
+            span [ class "font-semibold text-xl tracking-tight" ]
+                [ a [ class "text-white no-underline", Route.href <| Route.Index ]
+                    [ text "Dwello" ]
+                ]
+
+        linksWithLogo =
+            logo :: [ wrappedLinks ]
     in
-    div [ style "max-width" "200px", class "flex-none w-full p-6 bg-grey-lighter" ]
-        [ ul [ class "list-reset" ] links
+    nav [ class "bg-indigo-dark p-4" ]
+        [ div [ class "container mx-auto" ]
+            [ div [ class "w-full flex items-center flex-grow lg:flex lg:items-center lg:w-auto justify-between" ] linksWithLogo
+            ]
         ]
+
+
+loggedInLinks =
+    [ viewHeaderLink Route.Index "Users"
+    , viewHeaderLink Route.Logout "Logout"
+    ]
+
+
+loggedOutLinks =
+    [ viewHeaderLink Route.Login "Login"
+    , viewHeaderLink Route.Register "Register"
+    ]
+
+
+viewHeaderLink : Route -> String -> Html Msg
+viewHeaderLink route txt =
+    a [ class "block  lg:inline-block lg:mt-0 text-indigo-lighter hover:text-white mr-4", Route.href <| route, title txt ]
+        [ text txt ]
