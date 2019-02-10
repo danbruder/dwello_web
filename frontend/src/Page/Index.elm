@@ -14,7 +14,8 @@ import Data.Session exposing (Session)
 import Data.User exposing (User)
 import Global exposing (Global)
 import Html exposing (..)
-import Html.Attributes exposing (attribute, class, href, src, title, type_)
+import Html.Attributes exposing (attribute, class, href, src, style, title, type_)
+import Html.Events exposing (onClick)
 import RemoteData as RD exposing (RemoteData(..), WebData)
 import Request.User
 import Route exposing (Route)
@@ -37,12 +38,13 @@ getUsers config =
 
 type alias Model =
     { users : ApiResponse (List User)
+    , newUserModalOpen : Bool
     }
 
 
 init : Global -> ( Model, Cmd Msg, Global.Msg )
 init global =
-    ( { users = Loading }
+    ( { users = Loading, newUserModalOpen = False }
     , getUsers (Global.getConfig global)
     , Global.none
     )
@@ -54,6 +56,9 @@ init global =
 
 type Msg
     = GetUsersResponse (ApiResponse (List User))
+    | CreateUser
+    | OpenNewUserModal
+    | CloseNewUserModal
 
 
 update : Global -> Msg -> Model -> ( Model, Cmd Msg, Global.Msg )
@@ -61,6 +66,15 @@ update _ msg model =
     case msg of
         GetUsersResponse response ->
             ( { model | users = response }, Cmd.none, Global.none )
+
+        CreateUser ->
+            ( { model | newUserModalOpen = False }, Cmd.none, Global.none )
+
+        OpenNewUserModal ->
+            ( { model | newUserModalOpen = True }, Cmd.none, Global.none )
+
+        CloseNewUserModal ->
+            ( { model | newUserModalOpen = False }, Cmd.none, Global.none )
 
 
 
@@ -90,29 +104,29 @@ view _ model =
 
 viewContent : Model -> Html Msg
 viewContent model =
-    case model.users of
-        NotAsked ->
-            div [] []
+    let
+        users =
+            case model.users of
+                Loading ->
+                    div [ class "spinner flex justify-center w-full h-16" ] []
 
-        Loading ->
-            div [ class "spinner flex justify-center w-full h-16" ] []
+                Failure error ->
+                    text "Something went wrong..."
 
-        Failure error ->
-            text "Error"
-
-        Success response ->
-            case response of
-                Data userList ->
+                Success (Data userList) ->
                     viewUserTable userList
 
                 _ ->
                     div [] []
+    in
+    div [] [ users, viewNewUserModal model ]
 
 
 viewUserTable : List User -> Html Msg
 viewUserTable users =
     div [ class "bg-white shadow-md rounded my-8 p-6 " ]
-        [ div [ class " border-b border-grey-light overflow-hidden relative" ]
+        [ button [ onClick OpenNewUserModal, class "bg-indigo border-indigo text-white px-4 py-2 mb-2 rounded hover:bg-indigo-light" ] [ text "New User" ]
+        , div [ class " border-b border-grey-light overflow-hidden relative" ]
             [ div [ class " overflow-y-auto scrollbar-w-2 scrollbar-track-grey-lighter scrollbar-thumb-rounded scrollbar-thumb-grey scrolling-touch" ]
                 [ table [ class "w-full text-left table-collapse" ]
                     [ thead []
@@ -132,6 +146,52 @@ viewUserTable users =
                 ]
             ]
         ]
+
+
+viewNewUserModal : Model -> Html Msg
+viewNewUserModal model =
+    modal
+        (ModalConfig
+            "New User"
+            (div [] [ text "body" ])
+            CreateUser
+            CloseNewUserModal
+            "Save"
+            model.newUserModalOpen
+        )
+
+
+type alias ModalConfig =
+    { title : String
+    , body : Html Msg
+    , onSubmit : Msg
+    , onClose : Msg
+    , submitText : String
+    , isOpen : Bool
+    }
+
+
+modal : ModalConfig -> Html Msg
+modal config =
+    let
+        content =
+            div [ class "fixed pin z-50 overflow-auto bg-smoke-light flex", style "background-color" "rgba(0, 0, 0, 0.4)" ]
+                [ div [ class "relative p-8 bg-white w-full max-w-md m-auto flex-col flex" ]
+                    [ h3 [] [ text config.title ]
+                    , config.body
+                    , div []
+                        [ button [ onClick config.onSubmit ] [ text config.submitText ]
+                        , button [ onClick config.onClose ] [ text "close" ]
+                        ]
+                    ]
+                ]
+    in
+    case config.isOpen of
+        True ->
+            content
+
+        False ->
+            div [] []
 
 
 viewUser : User -> Html Msg
