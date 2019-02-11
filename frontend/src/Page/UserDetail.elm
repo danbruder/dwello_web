@@ -25,6 +25,8 @@ import Request.User
 import Route
 import Svg exposing (svg)
 import Svg.Attributes exposing (d, path, viewBox)
+import Util exposing (updateInPlace)
+import View exposing (Toast(..), toastFromApiResponse, viewToast)
 
 
 
@@ -71,7 +73,7 @@ searchForAddress config address =
 
 type alias Model =
     { id : String
-    , response : ApiResponse User
+    , userResponse : ApiResponse User
     , dealResponse : ApiResponse Deal
     , dealsResponse : ApiResponse (List Deal)
     , updateDealResponse : ApiResponse Deal
@@ -80,6 +82,7 @@ type alias Model =
     , editingDeal : Maybe Deal
     , geocodeResponse : Maybe (Result Http.Error Geocoding.Response)
     , showAddressSearchControls : Bool
+    , toast : Toast
     }
 
 
@@ -90,7 +93,7 @@ init global id =
             Global.getConfig global
     in
     ( { id = id
-      , response = Loading
+      , userResponse = Loading
       , dealResponse = NotAsked
       , dealsResponse = Loading
       , updateDealResponse = NotAsked
@@ -99,6 +102,7 @@ init global id =
       , editingDeal = Nothing
       , geocodeResponse = Nothing
       , showAddressSearchControls = False
+      , toast = Empty
       }
     , Cmd.batch
         [ getUser config id
@@ -136,105 +140,65 @@ type
 update : Global -> Msg -> Model -> ( Model, Cmd Msg, Global.Msg )
 update global msg model =
     case msg of
+        -- Responses
         MyGeocoderResult result ->
             ( { model | geocodeResponse = Just result }, Cmd.none, Global.none )
 
         GotUser response ->
-            ( { model | response = response }, Cmd.none, Global.none )
+            ( { model | userResponse = response, toast = toastFromApiResponse response }, Cmd.none, Global.none )
 
         GotDeals response ->
             let
                 dealList =
                     case response of
-                        Success d ->
-                            case d of
-                                Data e ->
-                                    e
-
-                                _ ->
-                                    []
+                        Success (Data d) ->
+                            d
 
                         _ ->
                             []
             in
-            ( { model | dealsResponse = response, dealList = dealList }, Cmd.none, Global.none )
-
-        StartEditing deal ->
-            ( { model | editingDeal = Just deal }, Cmd.none, Global.none )
-
-        StopEditing ->
-            ( { model | editingDeal = Nothing }, Cmd.none, Global.none )
+            ( { model | dealsResponse = response, dealList = dealList, toast = toastFromApiResponse response }, Cmd.none, Global.none )
 
         DealCreated response ->
             let
-                config =
-                    Global.getConfig global
-
                 newModel =
                     case response of
-                        Success d ->
-                            case d of
-                                Data data ->
-                                    { model | dealResponse = response, address = "", geocodeResponse = Nothing, showAddressSearchControls = False }
+                        Success (Data data) ->
+                            { model | address = "", geocodeResponse = Nothing, showAddressSearchControls = False }
 
-                                _ ->
-                                    { model | dealResponse = response }
-
-                        a ->
-                            { model | dealResponse = a }
+                        _ ->
+                            model
             in
-            ( newModel
-            , getDeals config model.id
+            ( { newModel | dealResponse = response, toast = toastFromApiResponse response }
+            , getDeals (Global.getConfig global) model.id
             , Global.none
             )
 
         DealUpdated response ->
             let
-                config =
-                    Global.getConfig global
-
                 newModel =
                     case response of
-                        Success d ->
-                            case d of
-                                Data data ->
-                                    let
-                                        updateInPlace =
-                                            \deal ->
-                                                if deal.id == data.id then
-                                                    data
-
-                                                else
-                                                    deal
-
-                                        newDeals =
-                                            List.map updateInPlace model.dealList
-                                    in
-                                    { model | updateDealResponse = response, dealList = newDeals, editingDeal = Nothing }
-
-                                _ ->
-                                    { model | updateDealResponse = response }
+                        Success (Data data) ->
+                            { model | dealList = updateInPlace model.dealList data, editingDeal = Nothing }
 
                         Failure _ ->
-                            { model | updateDealResponse = response, editingDeal = Nothing }
+                            { model | editingDeal = Nothing }
 
-                        a ->
-                            { model | updateDealResponse = a }
+                        _ ->
+                            model
             in
-            ( newModel
+            ( { newModel | updateDealResponse = response, toast = toastFromApiResponse response }
             , Cmd.none
             , Global.none
             )
 
+        -- Trigger requests
         CreateDeal address ->
             let
                 input =
                     CreateDealInput model.id address.formattedAddress address
-
-                config =
-                    Global.getConfig global
             in
-            ( { model | dealResponse = Loading }, createDeal config input, Global.none )
+            ( { model | dealResponse = Loading }, createDeal (Global.getConfig global) input, Global.none )
 
         SearchForAddress ->
             ( model, searchForAddress (Global.getConfig global) model.address, Global.none )
@@ -260,6 +224,12 @@ update global msg model =
             , cmd
             , Global.none
             )
+
+        StartEditing deal ->
+            ( { model | editingDeal = Just deal }, Cmd.none, Global.none )
+
+        StopEditing ->
+            ( { model | editingDeal = Nothing }, Cmd.none, Global.none )
 
         -- New Deal form
         Address a ->
@@ -306,47 +276,32 @@ view global model =
             [ viewContent
                 model
             ]
+        , viewToast model.toast
         ]
     }
 
 
 viewContent model =
-    case ( model.response, model.dealsResponse ) of
-        ( Loading, _ ) ->
-            viewLoading
-
-        ( _, Loading ) ->
-            viewLoading
-
-        ( Success s, _ ) ->
-            case s of
-                Data d ->
-                    div []
-                        [ viewUser d
-                        , viewDealList model
-                        ]
-
-                _ ->
-                    div [] [ text "Something went wrong" ]
-
-        ( Failure e, _ ) ->
-            div [] [ text "Error" ]
+    case model.userResponse of
+        Success (Data d) ->
+            div []
+                [ viewUser d
+                , viewDealList model
+                ]
 
         _ ->
-            div [] [ text "Something else" ]
+            div [] [ text "Could not get user" ]
 
 
 viewGeocodeResults : Model -> Html Msg
 viewGeocodeResults model =
     let
         formatHit =
-            \a -> li [ class "mt-2 cursor-pointer hover:bg-indigo-lightest absolute bg-white p-4 border border-grey shadow", onClick (CreateDeal a) ] [ text a.formattedAddress ]
+            \a -> li [ class "cursor-pointer hover:bg-indigo-lightest  bg-white p-4 ", onClick (CreateDeal a) ] [ text a.formattedAddress ]
 
         viewHits =
             \list ->
-                div [ class "" ]
-                    [ ul [ class "list-reset" ] (List.map formatHit list)
-                    ]
+                ul [ class "list-reset fixed mt-2 border border-grey-light rounded shadow" ] (List.map formatHit list)
     in
     case model.dealResponse of
         Loading ->
@@ -355,11 +310,7 @@ viewGeocodeResults model =
         _ ->
             case model.geocodeResponse of
                 Just (Ok r) ->
-                    let
-                        items =
-                            r.results
-                    in
-                    viewHits items
+                    viewHits r.results
 
                 _ ->
                     text ""
@@ -471,8 +422,8 @@ viewAddressForm model =
             case model.showAddressSearchControls of
                 True ->
                     span []
-                        [ input [ class "cursor-pointer  font-bold", type_ "submit", value "Search" ] []
-                        , button [ onClick ToggleAddressSearch, class "cursor-pointer text-indigo  ", type_ "button" ] [ text "Cancel" ]
+                        [ input [ class "cursor-pointer text-indigo ", type_ "submit", value "search" ] []
+                        , button [ onClick ToggleAddressSearch, class "text-grey cursor-pointer text-grey-darker", type_ "button" ] [ text "cancel" ]
                         ]
 
                 False ->

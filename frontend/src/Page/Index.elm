@@ -17,8 +17,10 @@ import Html exposing (..)
 import Html.Attributes exposing (attribute, class, classList, for, href, id, placeholder, src, style, title, type_, value)
 import Html.Events exposing (onClick, onInput, onSubmit)
 import RemoteData as RD exposing (RemoteData(..), WebData)
-import Request.User
+import Request.User exposing (CreateUserInput, Role(..))
 import Route exposing (Route)
+import Util exposing (updateInPlace)
+import View exposing (Toast(..), toastFromHttpError, viewToast)
 
 
 
@@ -32,30 +34,41 @@ getUsers config =
         |> Cmd.map GetUsersResponse
 
 
+createUser : Config -> CreateUserInput -> Cmd Msg
+createUser config input =
+    Request.User.createUser config input
+        |> RD.sendRequest
+        |> Cmd.map GotCreateUserResponse
+
+
 
 -- MODEL
 
 
 type alias Model =
-    { users : ApiResponse (List User)
+    { usersResponse : ApiResponse (List User)
+    , users : List User
     , newUserModalOpen : Bool
     , createUserResponse : ApiResponse User
-    , firstName : String
+    , name : String
     , lastName : String
     , email : String
     , password : String
+    , toast : Toast
     }
 
 
 init : Global -> ( Model, Cmd Msg, Global.Msg )
 init global =
-    ( { users = Loading
+    ( { usersResponse = Loading
+      , users = []
       , newUserModalOpen = False
       , createUserResponse = NotAsked
-      , firstName = ""
+      , name = ""
       , lastName = ""
       , email = ""
       , password = ""
+      , toast = Empty
       }
     , getUsers (Global.getConfig global)
     , Global.none
@@ -84,27 +97,64 @@ type
 
 
 update : Global -> Msg -> Model -> ( Model, Cmd Msg, Global.Msg )
-update _ msg model =
+update global msg model =
     case msg of
         GetUsersResponse response ->
-            ( { model | users = response }, Cmd.none, Global.none )
+            let
+                newModel =
+                    case response of
+                        Success (Data u) ->
+                            { model | users = u }
+
+                        Failure f ->
+                            { model | toast = toastFromHttpError f }
+
+                        _ ->
+                            model
+            in
+            ( { newModel | usersResponse = response }, Cmd.none, Global.none )
 
         GotCreateUserResponse response ->
-            ( { model | createUserResponse = response }, Cmd.none, Global.none )
+            let
+                newModel =
+                    case response of
+                        Success (Data d) ->
+                            { model | name = "", email = "", password = "", newUserModalOpen = False, users = List.append model.users [ d ] }
+
+                        Failure f ->
+                            { model | toast = toastFromHttpError f }
+
+                        _ ->
+                            model
+            in
+            ( { newModel | createUserResponse = response }, Cmd.none, Global.none )
 
         CreateUser ->
-            ( { model | createUserResponse = Loading }, Cmd.none, Global.none )
+            ( { model | createUserResponse = Loading }
+            , createUser (Global.getConfig global) (CreateUserInput model.name model.email model.password [ Authenticated ])
+            , Global.none
+            )
 
         -- Modal
         OpenNewUserModal ->
             ( { model | newUserModalOpen = True }, Cmd.none, Global.none )
 
         CloseNewUserModal ->
-            ( { model | newUserModalOpen = False }, Cmd.none, Global.none )
+            -- Clear away validation errors
+            let
+                r =
+                    case model.createUserResponse of
+                        Success (ValidationErrors e) ->
+                            NotAsked
+
+                        _ ->
+                            model.createUserResponse
+            in
+            ( { model | newUserModalOpen = False, name = "", email = "", password = "", createUserResponse = r }, Cmd.none, Global.none )
 
         -- Create user form
         FirstName s ->
-            ( { model | firstName = s }, Cmd.none, Global.none )
+            ( { model | name = s }, Cmd.none, Global.none )
 
         LastName s ->
             ( { model | lastName = s }, Cmd.none, Global.none )
@@ -137,6 +187,7 @@ view _ model =
             [ h1 [] [ text "Users" ]
             , viewContent model
             ]
+        , viewToast model.toast
         ]
     }
 
@@ -145,18 +196,7 @@ viewContent : Model -> Html Msg
 viewContent model =
     let
         users =
-            case model.users of
-                Loading ->
-                    div [ class "spinner flex justify-center w-full h-16" ] []
-
-                Failure error ->
-                    text "Something went wrong..."
-
-                Success (Data userList) ->
-                    viewUserTable userList
-
-                _ ->
-                    div [] []
+            viewUserTable model.users
     in
     div [] [ users, viewNewUserModal model ]
 
@@ -190,15 +230,15 @@ viewUserTable users =
 viewNewUserModal : Model -> Html Msg
 viewNewUserModal model =
     let
-        f =
+        body =
             div [ class "flex justify-center items-center h-full" ]
                 [ div [ class "w-full" ]
                     [ Html.form [ class "", onSubmit CreateUser ]
-                        [ viewInput model "text" "First name" model.firstName "firstName" FirstName
-                        , viewInput model "text" "Last name" model.lastName "lastName" LastName
+                        [ viewInput model "text" "First name" model.name "name" FirstName
                         , viewInput model "text" "Email" model.email "email" Email
                         , viewInput model "password" "Password" model.password "password" Password
                         , div [ class "pt-6 flex items-center justify-between" ] []
+                        , input [ type_ "submit", value "Submit", class "hidden" ] []
                         ]
                     ]
                 ]
@@ -206,7 +246,7 @@ viewNewUserModal model =
     modal
         (ModalConfig
             "New User"
-            f
+            body
             CreateUser
             CloseNewUserModal
             "Save"
@@ -236,7 +276,7 @@ modal config =
                 div [ class "spinner ml-8" ] []
 
             else
-                input [ class "cursor-pointer bg-indigo hover:bg-indigo-dark text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline", type_ "submit", value config.submitText ] []
+                input [ class "cursor-pointer bg-indigo hover:bg-indigo-dark text-white font-bold py-2 px-4 rounded focus:outline-none focus:shadow-outline", type_ "submit", onClick CreateUser, value config.submitText ] []
 
         content =
             div [ class "fixed pin z-50 overflow-auto bg-smoke-light flex", style "background-color" "rgba(0, 0, 0, 0.4)" ]

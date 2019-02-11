@@ -200,3 +200,39 @@ pub fn register(conn: Conn, input: RegistrationInput) -> Response<AuthPayload> {
         ..Default::default()
     })
 }
+
+/// Create user
+///
+/// Used by admins to create a user
+pub fn create_user(user: CurrentUser, conn: Conn, input: CreateUserInput) -> Response<User> {
+    use schema::users::dsl::*;
+
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+
+    input.validate()?;
+
+    // Create user
+    let user = diesel::insert_into(users)
+        .values(&NewUser {
+            name: input.name,
+            email: input.email,
+            password_hash: bcrypt::hash(&input.password, bcrypt::DEFAULT_COST)?,
+            roles: input.roles,
+        })
+        .get_result::<User>(&conn.0)
+        .map_err(|e| match e {
+            DatabaseError(DatabaseErrorKind::UniqueViolation, _info) => {
+                Error::from_custom_validation("email_taken", "email", "Email is taken")
+            }
+            _ => Error::from(e),
+        })?;
+
+    Ok(Payload {
+        data: user,
+        success: true,
+        ..Default::default()
+    })
+}

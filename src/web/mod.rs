@@ -22,10 +22,10 @@ pub fn build() -> Rocket {
                 accounts::register,
                 accounts::all_users,
                 accounts::user_by_id,
+                accounts::create_user,
                 deal::create_deal,
                 deal::get_deals,
                 deal::update_deal,
-                // deal::deals_with_houses,
             ],
         )
         .attach(cors::CORS())

@@ -26,13 +26,7 @@ import Request.Login exposing (LoginInput, encodeLoginInput)
 import Route
 import Task
 import Url.Builder as UB
-
-
-type Toast
-    = Empty
-    | Warn String
-    | Bad String
-    | Good String
+import View exposing (Toast(..), viewToast)
 
 
 
@@ -146,7 +140,7 @@ view _ model =
     , body =
         [ div [ class "bg-grey-lighter h-full" ]
             [ viewContent model
-            , viewToast model
+            , viewToast model.toast
             ]
         ]
     }
@@ -257,25 +251,3 @@ formatValidationErrors model field =
 hasValidationErrors : Model -> String -> Bool
 hasValidationErrors model field =
     getValidationErrors model field /= ""
-
-
-viewToast : Model -> Html Msg
-viewToast model =
-    case model.toast of
-        Empty ->
-            text ""
-
-        Warn t ->
-            div [ class "fixed pin-b w-full z-10 bg-yellow-lighter p-2 text-xs" ]
-                [ text t
-                ]
-
-        Bad t ->
-            div [ class "fixed pin-b w-full z-10 bg-red-lighter p-2 text-xs" ]
-                [ text t
-                ]
-
-        Good t ->
-            div [ class "fixed pin-b w-full z-10 bg-green-lighter p-2 text-xs" ]
-                [ text t
-                ]

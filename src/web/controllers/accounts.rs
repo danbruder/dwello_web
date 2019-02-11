@@ -27,3 +27,13 @@ pub fn login(conn: Conn, input: Json<LoginInput>) -> ApiResponse<AuthPayload> {
 pub fn register(conn: Conn, input: Json<RegistrationInput>) -> ApiResponse<AuthPayload> {
     accounts::register(conn, input.into_inner()).map(|r| Json(r))
 }
+
+/// Register route
+#[post("/users", format = "application/json", data = "<input>")]
+pub fn create_user(
+    user: CurrentUser,
+    conn: Conn,
+    input: Json<CreateUserInput>,
+) -> ApiResponse<User> {
+    accounts::create_user(user, conn, input.into_inner()).map(|r| Json(r))
+}

@@ -56,7 +56,7 @@ pub struct NewUser {
 /*
 * Deal status
 */
-#[derive(Serialize, Debug, Copy, Clone, AsExpression, FromSqlRow)]
+#[derive(Serialize, Deserialize, Debug, Copy, Clone, AsExpression, FromSqlRow)]
 #[sql_type = "Text"]
 pub enum Role {
     Anonymous,
@@ -114,4 +114,20 @@ pub struct RegistrationInput {
 pub struct AuthPayload {
     pub token: Option<String>,
     pub user: Option<User>,
+}
+
+/// Input used for registratoin
+#[derive(Deserialize, Clone, Validate)]
+pub struct CreateUserInput {
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+    pub name: String,
+    #[validate(email(message = "Email is not valid"))]
+    pub email: String,
+    #[validate(length(
+        min = "6",
+        max = "30",
+        message = "Password length must be between 6 and 30"
+    ))]
+    pub password: String,
+    pub roles: Vec<Role>,
 }
