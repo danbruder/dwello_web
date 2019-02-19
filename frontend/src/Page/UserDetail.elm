@@ -289,6 +289,12 @@ viewContent model =
                 , viewDealList model
                 ]
 
+        Loading ->
+            div [ class "spinner" ] []
+
+        NotAsked ->
+            div [] []
+
         _ ->
             div [] [ text "Could not get user" ]
 
