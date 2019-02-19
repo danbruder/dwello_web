@@ -194,11 +194,16 @@ view _ model =
 
 viewContent : Model -> Html Msg
 viewContent model =
-    let
-        users =
-            viewUserTable model.users
-    in
-    div [] [ users, viewNewUserModal model ]
+    case model.usersResponse of
+        Loading ->
+            div [ class "spinner" ] []
+
+        _ ->
+            let
+                users =
+                    viewUserTable model.users
+            in
+            div [] [ users, viewNewUserModal model ]
 
 
 viewUserTable : List User -> Html Msg
