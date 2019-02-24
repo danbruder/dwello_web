@@ -10,6 +10,7 @@ import Page.Index
 import Page.Login
 import Page.Register
 import Page.UserDetail
+import Page.UserProfileForm
 import Route exposing (Route)
 
 
@@ -52,6 +53,9 @@ view model =
 
         UserDetail lmodel ->
             viewPage UserDetailMsg lmodel Page.UserDetail.view
+
+        UserProfileForm lmodel ->
+            viewPage UserProfileFormMsg lmodel Page.UserProfileForm.view
 
         NotFound ->
             { title = "Not Found"

@@ -14,6 +14,7 @@ import Page.Index
 import Page.Login
 import Page.Register
 import Page.UserDetail
+import Page.UserProfileForm
 import Ports exposing (logout)
 import Route
 import Task
@@ -26,6 +27,7 @@ type Page
     | Login Page.Login.Model
     | Register Page.Register.Model
     | UserDetail Page.UserDetail.Model
+    | UserProfileForm Page.UserProfileForm.Model
     | NotFound
 
 
@@ -92,6 +94,10 @@ initPage url model =
         ( Just (Route.UserDetail { id }), True ) ->
             Page.UserDetail.init model.global id
                 |> updatePage UserDetail UserDetailMsg model
+
+        ( Just (Route.UserProfileForm { id }), True ) ->
+            Page.UserProfileForm.init model.global id
+                |> updatePage UserProfileForm UserProfileFormMsg model
 
         -- 404
         ( Nothing, _ ) ->

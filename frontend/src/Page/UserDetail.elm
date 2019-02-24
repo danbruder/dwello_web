@@ -330,6 +330,11 @@ viewUser user =
     div []
         [ h1 [ class "text-grey-darkest pb-2" ] [ text user.name ]
         , div [] [ text user.email ]
+        , div []
+            [ a [ class "no-underline text-indigo", Route.href <| Route.UserProfileForm { id = user.id |> String.fromInt } ]
+                [ text "Profile"
+                ]
+            ]
         ]
 
 

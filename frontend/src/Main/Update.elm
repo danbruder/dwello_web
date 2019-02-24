@@ -9,6 +9,7 @@ import Page.Index
 import Page.Login
 import Page.Register
 import Page.UserDetail
+import Page.UserProfileForm
 import Url
 
 
@@ -51,6 +52,10 @@ update msg model =
         ( UserDetailMsg lmsg, UserDetail lmodel ) ->
             Page.UserDetail.update model.global lmsg lmodel
                 |> updatePage UserDetail UserDetailMsg model
+
+        ( UserProfileFormMsg lmsg, UserProfileForm lmodel ) ->
+            Page.UserProfileForm.update model.global lmsg lmodel
+                |> updatePage UserProfileForm UserProfileFormMsg model
 
         _ ->
             ( model, Cmd.none )

@@ -21,6 +21,7 @@ type Route
     | Register
     | Logout
     | UserDetail { id : String }
+    | UserProfileForm { id : String }
 
 
 parser : Parser (Route -> a) a
@@ -31,6 +32,7 @@ parser =
         , UP.map Register <| UP.s "register"
         , UP.map Logout <| UP.s "logout"
         , UP.map (\id -> UserDetail { id = id }) <| UP.s "user" </> UP.string
+        , UP.map (\id -> UserProfileForm { id = id }) <| UP.s "user" </> UP.string </> UP.s "profile"
         ]
 
 
@@ -51,6 +53,9 @@ toString route =
 
         UserDetail { id } ->
             UB.absolute [ "user", id ] []
+
+        UserProfileForm { id } ->
+            UB.absolute [ "user", id, "profile" ] []
 
 
 newUrl : Key -> Route -> Cmd msg

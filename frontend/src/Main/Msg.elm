@@ -6,6 +6,7 @@ import Page.Index
 import Page.Login
 import Page.Register
 import Page.UserDetail
+import Page.UserProfileForm
 import Url exposing (Url)
 
 
@@ -17,3 +18,4 @@ type Msg
     | LoginMsg Page.Login.Msg
     | RegisterMsg Page.Register.Msg
     | UserDetailMsg Page.UserDetail.Msg
+    | UserProfileFormMsg Page.UserProfileForm.Msg

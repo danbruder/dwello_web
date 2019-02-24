@@ -6,6 +6,7 @@ import Page.Index
 import Page.Login
 import Page.Register
 import Page.UserDetail
+import Page.UserProfileForm
 
 
 subscriptions : Model -> Sub Msg
@@ -26,6 +27,10 @@ subscriptions model =
         UserDetail m ->
             Page.UserDetail.subscriptions model.global m
                 |> Sub.map UserDetailMsg
+
+        UserProfileForm m ->
+            Page.UserProfileForm.subscriptions model.global m
+                |> Sub.map UserProfileFormMsg
 
         NotFound ->
             Sub.none
