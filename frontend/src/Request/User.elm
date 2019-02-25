@@ -1,8 +1,8 @@
-module Request.User exposing (CreateUserInput, Role(..), createUser, getUser, getUsers)
+module Request.User exposing (CreateUserInput, ProfileInput, Role(..), createProfile, createUser, decodeAllUsersResponse, encodeCreateUserInput, encodeProfileInput, encodeRole, encodeRoles, getProfile, getUser, getUsers, updateProfile)
 
 import Api exposing (ApiData, decodeApiResponse)
 import Config exposing (Config)
-import Data.User as User exposing (User)
+import Data.User as User exposing (Profile, User)
 import Http exposing (Request)
 import HttpBuilder as HB
 import Json.Decode as JD
@@ -16,6 +16,35 @@ getUser config id =
     UB.crossOrigin config.api [ "users", id ] []
         |> HB.get
         |> HB.withExpect (Http.expectJson (decodeApiResponse User.userDecoder))
+        |> HB.withHeader "X-API-KEY" config.token
+        |> HB.toRequest
+
+
+getProfile : Config -> String -> Request (ApiData Profile)
+getProfile config id =
+    UB.crossOrigin config.api [ "users", id, "profile" ] []
+        |> HB.get
+        |> HB.withExpect (Http.expectJson (decodeApiResponse User.profileDecoder))
+        |> HB.withHeader "X-API-KEY" config.token
+        |> HB.toRequest
+
+
+createProfile : Config -> String -> ProfileInput -> Request (ApiData Profile)
+createProfile config id input =
+    UB.crossOrigin config.api [ "users", id, "profile" ] []
+        |> HB.post
+        |> HB.withExpect (Http.expectJson (decodeApiResponse User.profileDecoder))
+        |> HB.withJsonBody (encodeProfileInput input)
+        |> HB.withHeader "X-API-KEY" config.token
+        |> HB.toRequest
+
+
+updateProfile : Config -> String -> ProfileInput -> Request (ApiData Profile)
+updateProfile config id input =
+    UB.crossOrigin config.api [ "users", id, "profile" ] []
+        |> HB.put
+        |> HB.withExpect (Http.expectJson (decodeApiResponse User.profileDecoder))
+        |> HB.withJsonBody (encodeProfileInput input)
         |> HB.withHeader "X-API-KEY" config.token
         |> HB.toRequest
 
@@ -49,6 +78,13 @@ type alias CreateUserInput =
     , email : String
     , password : String
     , roles : List Role
+    }
+
+
+type alias ProfileInput =
+    { title : String
+    , intro : String
+    , body : String
     }
 
 
@@ -88,3 +124,12 @@ encodeRole v =
                     "Admin"
     in
     JE.string r
+
+
+encodeProfileInput : ProfileInput -> JE.Value
+encodeProfileInput v =
+    JE.object
+        [ ( "title", JE.string v.title )
+        , ( "intro", JE.string v.intro )
+        , ( "body", JE.string v.body )
+        ]

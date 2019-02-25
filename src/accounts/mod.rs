@@ -236,3 +236,92 @@ pub fn create_user(user: CurrentUser, conn: Conn, input: CreateUserInput) -> Res
         ..Default::default()
     })
 }
+
+//
+// Profiles
+//
+/// Create a new session
+pub fn create_profile(
+    conn: Conn,
+    user: &CurrentUser,
+    profile_user_id: i32,
+    input: &ProfileInput,
+) -> Response<Profile> {
+    use schema::profiles::dsl::*;
+
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+
+    input.validate()?;
+
+    // Create user
+    let profile = diesel::insert_into(profiles)
+        .values(&NewProfile {
+            uid: profile_user_id,
+            title: input.title.clone(),
+            intro: input.intro.clone(),
+            body: input.body.clone(),
+        })
+        .get_result::<Profile>(&conn.0)
+        .map_err(|e| match e {
+            DatabaseError(DatabaseErrorKind::UniqueViolation, _info) => {
+                Error::from_custom_validation("profile_exists", "profile", "Profile exists")
+            }
+            _ => Error::from(e),
+        })?;
+
+    Ok(Payload {
+        data: profile,
+        success: true,
+        ..Default::default()
+    })
+}
+
+/// Update Profile
+pub fn update_profile(
+    conn: Conn,
+    user: &CurrentUser,
+    profile_user_id: i32,
+    input: &ProfileInput,
+) -> Response<Profile> {
+    use schema::profiles::dsl::*;
+
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+
+    input.validate()?;
+
+    let profile = profiles
+        .filter(uid.eq(profile_user_id))
+        .first::<Profile>(&conn.0)?;
+
+    let profile = diesel::update(&profile).set(input).get_result(&conn.0)?;
+
+    Ok(Payload {
+        data: profile,
+        success: true,
+        ..Default::default()
+    })
+}
+
+/// Get profile
+pub fn get_profile(user_id: i32, user: CurrentUser, conn: Conn) -> Response<Profile> {
+    use schema::profiles::dsl::*;
+
+    let _ = match user {
+        Admin(user) => user,
+        _ => return Err(Error::AccessDenied),
+    };
+
+    let profile = profiles.filter(uid.eq(user_id)).first::<Profile>(&conn.0)?;
+
+    Ok(Payload {
+        data: profile,
+        success: true,
+        ..Default::default()
+    })
+}

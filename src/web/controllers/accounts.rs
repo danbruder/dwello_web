@@ -37,3 +37,37 @@ pub fn create_user(
 ) -> ApiResponse<User> {
     accounts::create_user(user, conn, input.into_inner()).map(|r| Json(r))
 }
+
+/// Profiles
+#[post(
+    "/users/<user_id>/profile",
+    format = "application/json",
+    data = "<input>"
+)]
+pub fn create_profile(
+    user_id: i32,
+    user: CurrentUser,
+    conn: Conn,
+    input: Json<ProfileInput>,
+) -> ApiResponse<Profile> {
+    accounts::create_profile(conn, &user, user_id, &input.into_inner()).map(|r| Json(r))
+}
+
+#[put(
+    "/users/<user_id>/profile",
+    format = "application/json",
+    data = "<input>"
+)]
+pub fn update_profile(
+    user_id: i32,
+    user: CurrentUser,
+    conn: Conn,
+    input: Json<ProfileInput>,
+) -> ApiResponse<Profile> {
+    accounts::update_profile(conn, &user, user_id, &input.into_inner()).map(|r| Json(r))
+}
+
+#[get("/users/<user_id>/profile", format = "application/json")]
+pub fn get_profile(user_id: i32, user: CurrentUser, conn: Conn) -> ApiResponse<Profile> {
+    accounts::get_profile(user_id, user, conn).map(|r| Json(r))
+}

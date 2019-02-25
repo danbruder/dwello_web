@@ -2,7 +2,7 @@ use diesel::deserialize::{self, FromSql};
 use diesel::pg::Pg;
 use diesel::serialize::{self, IsNull, Output, ToSql};
 use diesel::sql_types::Text;
-use schema::{sessions, users};
+use schema::{profiles, sessions, users};
 use std::io::Write;
 use validator::Validate;
 
@@ -130,4 +130,33 @@ pub struct CreateUserInput {
     ))]
     pub password: String,
     pub roles: Vec<Role>,
+}
+
+#[derive(Clone, Queryable, Serialize, Default, Identifiable)]
+pub struct Profile {
+    pub id: i32,
+    pub uid: i32,
+    pub title: String,
+    pub intro: String,
+    pub body: String,
+}
+
+#[derive(Clone, Insertable)]
+#[table_name = "profiles"]
+pub struct NewProfile {
+    pub uid: i32,
+    pub title: String,
+    pub intro: String,
+    pub body: String,
+}
+
+#[derive(Clone, Deserialize, Validate, AsChangeset)]
+#[table_name = "profiles"]
+pub struct ProfileInput {
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+    pub title: String,
+    #[validate(length(min = "1", max = "256", message = "Cannot be blank"))]
+    pub intro: String,
+    #[validate(length(min = "1", max = "2000", message = "Cannot be blank"))]
+    pub body: String,
 }

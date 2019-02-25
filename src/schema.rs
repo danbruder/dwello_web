@@ -23,6 +23,16 @@ table! {
 }
 
 table! {
+    profiles (id) {
+        id -> Int4,
+        uid -> Int4,
+        title -> Varchar,
+        intro -> Text,
+        body -> Text,
+    }
+}
+
+table! {
     sessions (id) {
         id -> Int4,
         uid -> Int4,
@@ -44,11 +54,13 @@ table! {
 }
 
 joinable!(deals -> houses (house_id));
+joinable!(profiles -> users (uid));
 joinable!(sessions -> users (uid));
 
 allow_tables_to_appear_in_same_query!(
     deals,
     houses,
+    profiles,
     sessions,
     users,
 );
