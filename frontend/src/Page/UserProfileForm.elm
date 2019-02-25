@@ -314,15 +314,15 @@ viewContent model =
                     ]
                 ]
     in
-    if model.profileExists == Yes && model.profileRequest /= Loading then
-        div [] [ profile ]
-
-    else
+    if model.profileExists == No then
         div []
             [ h1 [ class "mb-8" ]
                 [ text "Create profile" ]
             , profile
             ]
+
+    else
+        div [] [ profile ]
 
 
 viewInput :
